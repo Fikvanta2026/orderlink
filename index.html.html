@@ -1,0 +1,2405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0F172A" />
+  <title>OrderLink — Online Order Form &amp; SaaS Storefront</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Supabase JS v2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+          colors: {
+            brand: {
+              navy: '#0F172A',
+              slate: '#F8FAFC',
+              amber: '#F59E0B',
+              emerald: '#10B981',
+              whatsapp: '#25D366',
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    :root {
+      --brand-primary: #0F172A;
+      --brand-accent: #F59E0B;
+      --brand-soft: #F1F5F9;
+    }
+    .bg-brand-primary { background-color: var(--brand-primary) !important; }
+    .text-brand-primary { color: var(--brand-primary) !important; }
+    .border-brand-primary { border-color: var(--brand-primary) !important; }
+    .bg-brand-accent { background-color: var(--brand-accent) !important; }
+    .text-brand-accent { color: var(--brand-accent) !important; }
+    .bg-brand-soft { background-color: var(--brand-soft) !important; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0.6; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .animate-slide-up { animation: slideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+
+    @media print {
+      body * { visibility: hidden !important; }
+      #printable-invoice, #printable-invoice * { visibility: visible !important; }
+      #printable-invoice {
+        position: fixed !important; left: 0 !important; top: 0 !important;
+        width: 100% !important; max-width: 100% !important;
+        margin: 0 !important; padding: 20px !important;
+        box-shadow: none !important; border: none !important; background: #fff !important;
+      }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-200/80 text-[#0F172A] font-sans antialiased selection:bg-slate-900 selection:text-white">
+
+  <!-- Mobile-First App Container -->
+  <div id="app" class="max-w-md mx-auto min-h-screen bg-[#F8FAFC] relative shadow-xl overflow-x-hidden"></div>
+
+  <!-- Global Modal Root -->
+  <div id="modal-root" class="fixed inset-0 z-50 hidden"></div>
+
+  <!-- Global Toast Container -->
+  <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-full max-w-[380px] px-4 pointer-events-none flex flex-col gap-2"></div>
+
+  <script>
+    /**
+     * ============================================================================
+     * 1. SUPABASE CONFIGURATION & CLIENT INITIALIZATION
+     * ============================================================================
+     */
+    const SUPABASE_URL = 'https://xtuhotrytagateunvjcg.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_FkILsot7efLalmSfzxH53g__Iss-cHo';
+    let sb = null;
+    try {
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      }
+    } catch (e) {
+      console.warn('Supabase init fallback to Demo Mode:', e);
+    }
+
+    const STORAGE_KEY = 'orderlink_supabase_pwa_v1';
+    const THEME_STORAGE_KEY = 'orderlink_theme_id_v1';
+    const FALLBACK_IMG = 'https://placehold.co/300x300/0F172A/FFFFFF?text=OrderLink';
+
+    /**
+     * ============================================================================
+     * 1B. 12 BUSINESS CATEGORIES & 6 CURATED THEME PALETTES
+     * ============================================================================
+     */
+    const THEME_PALETTES = {
+      navy: { id: 'navy', name: 'Deep Navy & Amber', primary: '#0F172A', accent: '#F59E0B', soft: '#F1F5F9' },
+      garage: { id: 'garage', name: 'Garage Slate & Racing Red', primary: '#1E293B', accent: '#DC2626', soft: '#FEF2F2' },
+      teal: { id: 'teal', name: 'Service Teal & Emerald', primary: '#0F766E', accent: '#10B981', soft: '#F0FDFA' },
+      rose: { id: 'rose', name: 'Rose & Warm Gold', primary: '#881337', accent: '#D97706', soft: '#FFF1F2' },
+      indigo: { id: 'indigo', name: 'Royal Indigo & Violet', primary: '#312E81', accent: '#7C3AED', soft: '#EEF2FF' },
+      charcoal: { id: 'charcoal', name: 'Charcoal & Orange', primary: '#18181B', accent: '#EA580C', soft: '#FFF7ED' },
+    };
+
+    const BUSINESS_TYPES = {
+      'Auto Spare Parts & Garage': {
+        isFood: false, isService: false, defaultTheme: 'garage',
+        categories: ['Engine & Oils', 'Brakes & Clutch', 'Filters', 'Lights & Electrical', 'Tyres & Body'],
+      },
+      'Home & Repair Services': {
+        isFood: false, isService: true, defaultTheme: 'teal',
+        categories: ['AC & Appliance', 'Plumbing', 'Electrician', 'Cleaning', 'Installation'],
+      },
+      'Bakery, Cakes & Cloud Kitchen': {
+        isFood: true, isService: false, defaultTheme: 'rose',
+        categories: ['Cakes & Bakes', 'Snacks', 'Beverages', 'Combos'],
+      },
+      'Gifts, Flowers & Boutiques': {
+        isFood: false, isService: false, defaultTheme: 'rose',
+        categories: ['Gift Hampers', 'Flowers', 'Personalized', 'Festive'],
+      },
+      'Electronics & Mobile Accessories': {
+        isFood: false, isService: false, defaultTheme: 'navy',
+        categories: ['Chargers & Cables', 'Audio', 'Cases & Covers', 'Gadgets'],
+      },
+      'Grocery, Kirana & Organic Mart': {
+        isFood: true, isService: false, defaultTheme: 'teal',
+        categories: ['Staples', 'Dairy', 'Snacks', 'Household'],
+      },
+      'Clothing, Fashion & Jewellery': {
+        isFood: false, isService: false, defaultTheme: 'rose',
+        categories: ['Men', 'Women', 'Kids', 'Accessories'],
+      },
+      'Pharmacy, Medical & Wellness': {
+        isFood: false, isService: false, defaultTheme: 'teal',
+        categories: ['Medicines', 'Personal Care', 'Devices', 'Supplements'],
+      },
+      'Hardware, Paints & Tools': {
+        isFood: false, isService: false, defaultTheme: 'garage',
+        categories: ['Power Tools', 'Paints', 'Plumbing Fittings', 'Fasteners'],
+      },
+      'Salon, Beauty & Parlour': {
+        isFood: false, isService: true, defaultTheme: 'rose',
+        categories: ['Haircare', 'Skincare', 'Bridal Packages', 'Grooming'],
+      },
+      'Stationery, Books & Coaching': {
+        isFood: false, isService: false, defaultTheme: 'indigo',
+        categories: ['Notebooks', 'Art Supplies', 'Study Material', 'Office'],
+      },
+      'General Retail Store': {
+        isFood: false, isService: false, defaultTheme: 'navy',
+        categories: ['Best Sellers', 'New Arrivals', 'Combos', 'Clearance'],
+      },
+    };
+
+    function getBusinessConfig(catName) {
+      return BUSINESS_TYPES[catName] || BUSINESS_TYPES['General Retail Store'];
+    }
+
+    function applyTheme(themeId) {
+      const palette = THEME_PALETTES[themeId] || THEME_PALETTES.navy;
+      const root = document.documentElement;
+      root.style.setProperty('--brand-primary', palette.primary);
+      root.style.setProperty('--brand-accent', palette.accent);
+      root.style.setProperty('--brand-soft', palette.soft);
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) metaTheme.setAttribute('content', palette.primary);
+      try { localStorage.setItem(THEME_STORAGE_KEY, palette.id); } catch (e) {}
+    }
+
+    function getActiveThemeId() {
+      if (state && state.merchant && state.merchant.theme_id && THEME_PALETTES[state.merchant.theme_id]) {
+        return state.merchant.theme_id;
+      }
+      try {
+        const saved = localStorage.getItem(THEME_STORAGE_KEY);
+        if (saved && THEME_PALETTES[saved]) return saved;
+      } catch (e) {}
+      const biz = getBusinessConfig(state && state.merchant && state.merchant.category);
+      return biz.defaultTheme || 'navy';
+    }
+
+    /**
+     * ============================================================================
+     * 2. MULTI-LANGUAGE DICTIONARY (EN / HI / GU)
+     * ============================================================================
+     */
+    const I18N = {
+      en: {
+        home: 'Home', orders: 'Orders', catalog: 'Catalog', settings: 'Settings',
+        preview: 'Preview', live: 'Open', closed: 'Closed',
+        shopLink: 'Your Shareable Store Link', copyLink: 'Copy Link', whatsapp: 'WhatsApp', qrCode: 'QR Code',
+        totalOrders: 'Orders', revenue: 'Revenue', pending: 'Pending',
+        recentOrders: 'Recent Orders', viewAll: 'View All',
+        addProduct: '+ Add Product', bulkCsv: 'Bulk CSV', exportCsv: 'Export CSV',
+        orderOnWa: 'Order on WhatsApp', itemsSelected: 'Items Selected',
+        storePaused: 'Store is currently paused or closed. Ordering is temporarily unavailable.',
+        freeDeliveryUnlocked: 'Yay! FREE Delivery unlocked on this order!',
+      },
+      hi: {
+        home: 'होम', orders: 'ऑर्डर्स', catalog: 'कैटलॉग', settings: 'सेटिंग्स',
+        preview: 'स्टोर देखें', live: 'खुला है', closed: 'बंद है',
+        shopLink: 'आपकी दुकान का लिंक', copyLink: 'लिंक कॉपी', whatsapp: 'व्हाट्सएप', qrCode: 'QR कोड',
+        totalOrders: 'ऑर्डर्स', revenue: 'कमाई', pending: 'पेंडिंग',
+        recentOrders: 'हाल के ऑर्डर्स', viewAll: 'सभी देखें',
+        addProduct: '+ प्रोडक्ट जोड़ें', bulkCsv: 'बल्क CSV', exportCsv: 'रिपोर्ट CSV',
+        orderOnWa: 'WhatsApp पर ऑर्डर करें', itemsSelected: 'आइटम चुने गए',
+        storePaused: 'दुकान अभी बंद है। ऑर्डर अस्थायी रूप से रुके हुए हैं।',
+        freeDeliveryUnlocked: 'बधाई हो! फ्री डिलीवरी अनलॉक हो गई है!',
+      },
+      gu: {
+        home: 'હોમ', orders: 'ઓર્ડર્સ', catalog: 'કેટલોગ', settings: 'સેટિંગ્સ',
+        preview: 'સ્ટોર જુઓ', live: 'ખુલ્લું છે', closed: 'બંધ છે',
+        shopLink: 'તમારી દુકાનની લિંક', copyLink: 'લિંક કોપી', whatsapp: 'વોટ્સએપ', qrCode: 'QR કોડ',
+        totalOrders: 'ઓર્ડર્સ', revenue: 'આવક', pending: 'પેન્ડિંગ',
+        recentOrders: 'તાજેતરના ઓર્ડર્સ', viewAll: 'બધા જુઓ',
+        addProduct: '+ પ્રોડક્ટ ઉમેરો', bulkCsv: 'બલ્ક CSV', exportCsv: 'રિપોર્ટ CSV',
+        orderOnWa: 'WhatsApp પર ઓર્ડર કરો', itemsSelected: 'વસ્તુઓ પસંદ કરી',
+        storePaused: 'દુકાન હાલમાં બંધ છે. ઓર્ડર લેવાનું બંધ છે.',
+        freeDeliveryUnlocked: 'અભિનંદન! ફ્રી ડિલિવરી અનલોક થઈ ગઈ છે!',
+      },
+    };
+
+    function t(key) {
+      const lang = (state && state.ui && state.ui.lang) || 'en';
+      return (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
+    }
+
+    const OFFER_THEMES = {
+      navy: { label: 'Royal Navy', bg: 'from-[#0F172A] via-[#1E293B] to-[#334155]', badge: 'bg-amber-400 text-slate-950' },
+      amber: { label: 'Festive Gold', bg: 'from-[#D97706] via-[#EA580C] to-[#9A3412]', badge: 'bg-white text-orange-700' },
+      emerald: { label: 'Fresh Emerald', bg: 'from-[#047857] via-[#059669] to-[#065F46]', badge: 'bg-amber-300 text-emerald-950' },
+      rose: { label: 'Berry Rose', bg: 'from-[#9F1239] via-[#BE123C] to-[#881337]', badge: 'bg-amber-300 text-rose-950' },
+    };
+
+    /**
+     * ============================================================================
+     * 3. DEMO DATA & STATE MANAGEMENT (SUPABASE LIVE + LOCALSTORAGE FALLBACK)
+     * ============================================================================
+     */
+    function getDemoData() {
+      const trialEnd = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
+      return {
+        merchant: {
+          id: 'demo-merchant-1',
+          shop_name: 'Aanya Gift Studio',
+          slug: 'aanya-gifts',
+          owner_name: 'Aanya Shah',
+          whatsapp_number: '919876543210',
+          city: 'Ahmedabad',
+          category: 'Bakery, Cakes & Cloud Kitchen',
+          theme_id: 'rose',
+          upi_id: 'aanyagifts@okaxis',
+          logo_url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=200&q=80',
+          is_open: true,
+          delivery_fee: 40,
+          free_delivery_above: 1000,
+          plan_status: 'trial',
+          trial_ends_at: trialEnd,
+          subscription_ends_at: null,
+        },
+        products: [
+          {
+            id: 'prod-1', merchant_id: 'demo-merchant-1',
+            name: 'Dutch Truffle Cake', category: 'Cakes & Bakes',
+            description: 'Moist Belgian dark chocolate sponge with silky ganache.',
+            price: 650, mrp: 750,
+            image_url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=400&q=80',
+            dietary: 'veg', in_stock: true, is_bestseller: true,
+            variants: [{ label: '500g', price: 650, mrp: 750 }, { label: '1kg', price: 1200, mrp: 1400 }],
+          },
+          {
+            id: 'prod-2', merchant_id: 'demo-merchant-1',
+            name: 'Artisanal Celebration Hamper', category: 'Gift Hampers',
+            description: 'Festive box with butter cookies, brass diya & scented soy candle.',
+            price: 1850, mrp: 2200,
+            image_url: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=400&q=80',
+            dietary: 'veg', in_stock: true, is_bestseller: true,
+            variants: [{ label: 'Standard Box', price: 1850, mrp: 2200 }, { label: 'Royal Box', price: 2950, mrp: 3500 }],
+          },
+          {
+            id: 'prod-3', merchant_id: 'demo-merchant-1',
+            name: 'Belgian Fudge Brownies', category: 'Cakes & Bakes',
+            description: 'Crinkly-top dark chocolate walnut brownies baked fresh.',
+            price: 550, mrp: 600,
+            image_url: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=400&q=80',
+            dietary: 'veg', in_stock: true, is_bestseller: false,
+            variants: [{ label: 'Box of 6', price: 550, mrp: 600 }, { label: 'Box of 12', price: 1050, mrp: 1200 }],
+          },
+          {
+            id: 'prod-4', merchant_id: 'demo-merchant-1',
+            name: 'Lotus Biscoff Cheesecake Jar', category: 'Best Sellers',
+            description: 'Creamy no-bake cheesecake layered with caramelized Biscoff.',
+            price: 380, mrp: 420,
+            image_url: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&w=400&q=80',
+            dietary: 'veg', in_stock: true, is_bestseller: true,
+            variants: [{ label: 'Single Jar', price: 380, mrp: 420 }, { label: 'Pack of 2', price: 720, mrp: 840 }],
+          },
+        ],
+        orders: [
+          {
+            id: 'ord-1', order_code: '#ORD-104', merchant_id: 'demo-merchant-1',
+            customer_name: 'Priya Sharma', customer_phone: '9820112233',
+            customer_address: 'Flat 402, Greenview Residency, Navrangpura, Ahmedabad',
+            delivery_slot: 'Evening (4 PM - 8 PM)',
+            items: [
+              { product_id: 'prod-1', name: 'Dutch Truffle Cake', variant: '500g', qty: 1, price: 650 },
+              { product_id: 'prod-3', name: 'Belgian Fudge Brownies', variant: 'Box of 6', qty: 1, price: 550 },
+            ],
+            subtotal: 1200, discount: 100, coupon_code: 'SAVE100', delivery_fee: 0, total: 1100,
+            payment_status: 'Pending', order_status: 'Pending',
+            created_at: new Date(Date.now() - 15 * 60000).toISOString(),
+          },
+          {
+            id: 'ord-2', order_code: '#ORD-103', merchant_id: 'demo-merchant-1',
+            customer_name: 'Rahul Verma', customer_phone: '9845098765',
+            customer_address: 'B-18, Shivalik Plaza, Satellite, Ahmedabad',
+            delivery_slot: 'Afternoon (12 PM - 4 PM)',
+            items: [{ product_id: 'prod-2', name: 'Artisanal Celebration Hamper', variant: 'Standard Box', qty: 1, price: 1850 }],
+            subtotal: 1850, discount: 0, coupon_code: '', delivery_fee: 0, total: 1850,
+            payment_status: 'Paid', order_status: 'Confirmed',
+            created_at: new Date(Date.now() - 70 * 60000).toISOString(),
+          },
+        ],
+        coupons: [
+          { id: 'cp-1', merchant_id: 'demo-merchant-1', code: 'DIWALI10', discount_type: 'percent', discount_value: 10, min_order: 0, is_active: true },
+          { id: 'cp-2', merchant_id: 'demo-merchant-1', code: 'SAVE100', discount_type: 'flat', discount_value: 100, min_order: 500, is_active: true },
+        ],
+        offer_slides: [
+          {
+            id: 'sl-1', merchant_id: 'demo-merchant-1',
+            badge: 'FLAT 10% OFF • DIWALI10', title: 'Festive Gift Hampers',
+            subtitle: 'Handcrafted boxes starting ₹1,850 • Code DIWALI10',
+            cta_text: 'Shop Hampers', filter_category: 'Gift Hampers', theme: 'navy',
+            image_url: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=300&q=80',
+            is_active: true,
+          },
+          {
+            id: 'sl-2', merchant_id: 'demo-merchant-1',
+            badge: 'FREE DELIVERY ABOVE ₹1000', title: 'Fresh Belgian Cakes',
+            subtitle: 'Same-day delivery • 100% Eggless options available',
+            cta_text: 'Order Cakes', filter_category: 'Cakes & Bakes', theme: 'amber',
+            image_url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=300&q=80',
+            is_active: true,
+          },
+        ],
+        customerProfile: {
+          isLoggedIn: false,
+          phone: '',
+          name: '',
+          addresses: [{ id: 'addr-1', label: 'Home', text: 'Flat 402, Greenview Residency, Navrangpura, Ahmedabad', isDefault: true }],
+          wishlist: ['prod-1'],
+        },
+        adminMerchants: [],
+      };
+    }
+
+    function loadLocalDemo() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return getDemoData();
+        const parsed = JSON.parse(raw);
+        return { ...getDemoData(), ...parsed };
+      } catch (e) {
+        return getDemoData();
+      }
+    }
+
+    function saveLocalDemo() {
+      if (state.isCloudLive) return;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          merchant: state.merchant,
+          products: state.products,
+          orders: state.orders,
+          coupons: state.coupons,
+          offer_slides: state.offer_slides,
+          customerProfile: state.customerProfile,
+        }));
+      } catch (e) {
+        console.warn('localStorage save warning:', e);
+      }
+    }
+
+    const initialDemo = loadLocalDemo();
+    const state = {
+      isCloudLive: false,
+      loading: false,
+      merchant: initialDemo.merchant,
+      products: initialDemo.products,
+      orders: initialDemo.orders,
+      coupons: initialDemo.coupons,
+      offer_slides: initialDemo.offer_slides,
+      customerProfile: initialDemo.customerProfile,
+      customerOrders: [],
+      adminMerchants: [initialDemo.merchant],
+      cart: {}, // { 'prodId__varIdx': qty }
+      selectedVariants: {},
+      appliedCoupon: null,
+      ui: {
+        mode: 'auth', // 'auth' | 'merchant' | 'store' | 'admin'
+        authTab: 'login', // 'login' | 'signup'
+        authAlert: null, // { type: 'amber' | 'red', title: '', message: '' }
+        signupTheme: 'navy',
+        activeTab: 'home', // 'home' | 'orders' | 'catalog' | 'settings'
+        lang: 'en',
+        orderFilter: 'All',
+        orderSearch: '',
+        catalogSearch: '',
+        storeCategory: 'All',
+        activeSlideIndex: 0,
+        offersManagerOpen: false,
+      },
+    };
+
+    let slideTimer = null;
+
+    /**
+     * ============================================================================
+     * 4. UTILITY HELPERS
+     * ============================================================================
+     */
+    function formatINR(n) {
+      return '₹' + (Number(n) || 0).toLocaleString('en-IN');
+    }
+
+    function escapeHTML(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function getInitials(name) {
+      const p = (name || 'U').trim().split(/\s+/);
+      return p.length === 1 ? p[0].slice(0, 2).toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase();
+    }
+
+    function formatRelTime(iso) {
+      const diffMin = Math.floor((Date.now() - new Date(iso || Date.now()).getTime()) / 60000);
+      if (diffMin < 1) return 'Just now';
+      if (diffMin < 60) return `${diffMin}m ago`;
+      const h = Math.floor(diffMin / 60);
+      if (h < 24) return `${h}h ago`;
+      return `${Math.floor(h / 24)}d ago`;
+    }
+
+    function getTrialDaysLeft() {
+      const m = state.merchant;
+      if (!m || !m.trial_ends_at) return 0;
+      const diff = new Date(m.trial_ends_at).getTime() - Date.now();
+      return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    }
+
+    function getShareableStoreUrl() {
+      const base = window.location.origin !== 'null' && window.location.origin.startsWith('http')
+        ? `${window.location.origin}${window.location.pathname}`
+        : 'https://orderlink.app/';
+      const slug = (state.merchant && state.merchant.slug) || 'aanya-gifts';
+      return `${base}?shop=${encodeURIComponent(slug)}`;
+    }
+
+    function showToast(message, variant = 'navy') {
+      const container = document.getElementById('toast-container');
+      const colors = {
+        navy: 'bg-[#0F172A] text-white border-slate-700',
+        emerald: 'bg-emerald-600 text-white border-emerald-500',
+        amber: 'bg-amber-500 text-white border-amber-400',
+        red: 'bg-rose-600 text-white border-rose-500',
+      };
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto px-4 py-3 rounded-2xl shadow-lg border text-xs font-bold flex items-center justify-between gap-2 animate-fade-in ${colors[variant] || colors.navy}`;
+      el.innerHTML = `<span class="leading-snug">${escapeHTML(message)}</span><button class="opacity-75 hover:opacity-100 ml-2" onclick="this.parentElement.remove()">✕</button>`;
+      container.appendChild(el);
+      setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 220); }, 3200);
+    }
+
+    function copyToClipboard(text, msg = 'Copied to clipboard!') {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast(msg, 'emerald');
+      } catch (e) {
+        showToast('Could not copy automatically.', 'amber');
+      }
+    }
+
+    function closeModal() {
+      const root = document.getElementById('modal-root');
+      root.classList.add('hidden');
+      root.innerHTML = '';
+    }
+
+    function renderCloudPill() {
+      return state.isCloudLive
+        ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-extrabold"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Supabase Live</span>`
+        : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-extrabold"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Demo Mode</span>`;
+    }
+
+    function setMode(mode) {
+      state.ui.mode = mode;
+      state.ui.offersManagerOpen = false;
+      state.ui.activeSlideIndex = 0;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      renderApp();
+    }
+
+    function setTab(tab) {
+      state.ui.activeTab = tab;
+      state.ui.offersManagerOpen = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      renderApp();
+    }
+
+    /**
+     * ============================================================================
+     * 5. SUPABASE DATA LOADERS & AUTH FLOWS
+     * ============================================================================
+     */
+    async function loadMerchantBundleFromSupabase(merchantId) {
+      if (!sb) return false;
+      try {
+        const [mRes, pRes, oRes, cRes, sRes] = await Promise.all([
+          sb.from('merchants').select('*').eq('id', merchantId).single(),
+          sb.from('products').select('*').eq('merchant_id', merchantId).order('created_at', { ascending: false }),
+          sb.from('orders').select('*').eq('merchant_id', merchantId).order('created_at', { ascending: false }),
+          sb.from('coupons').select('*').eq('merchant_id', merchantId).order('created_at', { ascending: false }),
+          sb.from('offer_slides').select('*').eq('merchant_id', merchantId).order('created_at', { ascending: false }),
+        ]);
+
+        if (mRes.error || !mRes.data) {
+          showToast('Merchant profile not found. Please complete setup.', 'amber');
+          return false;
+        }
+
+        state.isCloudLive = true;
+        state.merchant = mRes.data;
+        if (!state.merchant.theme_id) {
+          state.merchant.theme_id = getBusinessConfig(state.merchant.category).defaultTheme;
+        }
+        applyTheme(state.merchant.theme_id);
+        state.products = pRes.data || [];
+        state.orders = oRes.data || [];
+        state.coupons = cRes.data || [];
+        state.offer_slides = sRes.data || [];
+        return true;
+      } catch (err) {
+        showToast('Network error loading Supabase data.', 'red');
+        return false;
+      }
+    }
+
+    async function loadStorefrontBySlug(slug) {
+      if (!sb) return false;
+      try {
+        const { data: merchant, error } = await sb.from('merchants').select('*').eq('slug', slug).single();
+        if (error || !merchant) return false;
+        const [pRes, cRes, sRes] = await Promise.all([
+          sb.from('products').select('*').eq('merchant_id', merchant.id).eq('in_stock', true).order('created_at', { ascending: false }),
+          sb.from('coupons').select('*').eq('merchant_id', merchant.id).eq('is_active', true),
+          sb.from('offer_slides').select('*').eq('merchant_id', merchant.id).eq('is_active', true).order('created_at', { ascending: false }),
+        ]);
+        state.isCloudLive = true;
+        state.merchant = merchant;
+        applyTheme(merchant.theme_id || getBusinessConfig(merchant.category).defaultTheme);
+        state.products = pRes.data || [];
+        state.coupons = cRes.data || [];
+        state.offer_slides = sRes.data || [];
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    async function handleSupabaseLogin(e) {
+      e.preventDefault();
+      state.ui.authAlert = null;
+      if (!sb) {
+        state.ui.authAlert = {
+          type: 'red',
+          title: 'Supabase SDK Unavailable',
+          message: 'Could not initialize Supabase client. Check your internet connection or test immediately in Local Demo Mode.',
+        };
+        renderApp();
+        return;
+      }
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-pass').value;
+      const btn = document.getElementById('login-btn');
+      btn.disabled = true; btn.textContent = 'Signing in...';
+
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) {
+          const msg = error.message || 'Login failed.';
+          if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
+            state.ui.authAlert = {
+              type: 'red',
+              title: 'Unable to Reach Supabase Server',
+              message: 'Network/CORS "Failed to fetch" error. Please check your internet connection, disable any ad-blocker/VPN blocking supabase.co, or use 1-Click Demo Mode below.',
+            };
+          } else if (msg.toLowerCase().includes('confirm')) {
+            state.ui.authAlert = {
+              type: 'amber',
+              title: 'Email Confirmation Pending',
+              message: "Please confirm your email OR disable 'Confirm Email' in Supabase Dashboard -> Authentication -> Providers -> Email for instant login.",
+            };
+          } else {
+            state.ui.authAlert = { type: 'red', title: 'Login Failed', message: msg };
+          }
+          renderApp();
+          return;
+        }
+        const ok = await loadMerchantBundleFromSupabase(data.user.id);
+        if (ok) {
+          showToast(`Welcome back, ${state.merchant.shop_name}!`, 'emerald');
+          setMode('merchant');
+        }
+      } catch (err) {
+        state.ui.authAlert = {
+          type: 'red',
+          title: 'Connection / Fetch Error',
+          message: 'Unable to fetch from Supabase. Verify your internet connection, check if an ad-blocker or firewall is blocking xtuhotrytagateunvjcg.supabase.co, or try Local Demo Mode.',
+        };
+        renderApp();
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Login to Dashboard'; }
+      }
+    }
+
+    async function handleSupabaseSignup(e) {
+      e.preventDefault();
+      state.ui.authAlert = null;
+      if (!sb) { showToast('Supabase SDK not loaded. Use Demo Mode.', 'amber'); return; }
+      const shop_name = document.getElementById('su-shop').value.trim();
+      const owner_name = document.getElementById('su-owner').value.trim();
+      const email = document.getElementById('su-email').value.trim();
+      const password = document.getElementById('su-pass').value;
+      const whatsapp_number = document.getElementById('su-wa').value.replace(/\D/g, '');
+      const city = document.getElementById('su-city').value.trim() || 'Ahmedabad';
+      const category = document.getElementById('su-cat').value;
+      const theme_id = state.ui.signupTheme || getBusinessConfig(category).defaultTheme;
+      const btn = document.getElementById('signup-btn');
+      btn.disabled = true; btn.textContent = 'Creating shop...';
+
+      try {
+        const { data, error } = await sb.auth.signUp({ email, password });
+        if (error) {
+          state.ui.authAlert = {
+            type: 'red',
+            title: 'Signup Error',
+            message: error.message.toLowerCase().includes('fetch')
+              ? 'Unable to fetch from Supabase. Check your internet/ad-blocker or use Demo Mode.'
+              : error.message,
+          };
+          renderApp();
+          return;
+        }
+
+        const user = data.user;
+        const session = data.session;
+
+        // Graceful handling when Supabase Email Confirmation is ON (user exists, session is null)
+        if (!user || !session) {
+          applyTheme(theme_id);
+          state.ui.authAlert = {
+            type: 'amber',
+            title: 'Account Created — Email Verification Required',
+            message: "Account created! Please confirm your email OR disable 'Confirm Email' in Supabase Dashboard -> Authentication -> Providers -> Email for instant login.",
+          };
+          state.ui.authTab = 'login';
+          renderApp();
+          return;
+        }
+
+        const baseSlug = shop_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'shop';
+        const slug = `${baseSlug}-${Math.floor(100 + Math.random() * 899)}`;
+        const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+        const coreMerchant = {
+          id: user.id,
+          shop_name,
+          slug,
+          owner_name,
+          whatsapp_number: whatsapp_number.startsWith('91') ? whatsapp_number : `91${whatsapp_number}`,
+          city,
+          category,
+          upi_id: '',
+          logo_url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=200&q=80',
+          is_open: true,
+          delivery_fee: 40,
+          free_delivery_above: 500,
+          plan_status: 'trial',
+          trial_ends_at: trialEnds,
+        };
+
+        // Try saving with theme_id first; fallback gracefully if theme_id column doesn't exist yet
+        let insRes = await sb.from('merchants').insert({ ...coreMerchant, theme_id });
+        if (insRes.error && (insRes.error.message || '').toLowerCase().includes('theme_id')) {
+          insRes = await sb.from('merchants').insert(coreMerchant);
+        }
+
+        if (insRes.error) {
+          state.ui.authAlert = {
+            type: 'amber',
+            title: 'Account Created — Confirm Email to Continue',
+            message: "Account created! Please confirm your email OR disable 'Confirm Email' in Supabase Dashboard -> Authentication -> Providers -> Email for instant login.",
+          };
+          state.ui.authTab = 'login';
+          renderApp();
+          return;
+        }
+
+        applyTheme(theme_id);
+        await loadMerchantBundleFromSupabase(user.id);
+        state.merchant.theme_id = theme_id;
+        showToast(`🎉 ${shop_name} is LIVE! 14-day Free Trial started.`, 'emerald');
+        setMode('merchant');
+      } catch (err) {
+        state.ui.authAlert = {
+          type: 'red',
+          title: 'Network / Fetch Error',
+          message: 'Unable to reach Supabase during signup. Check your internet connection or test immediately in Local Demo Mode.',
+        };
+        renderApp();
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Start 14-Day Free Trial'; }
+      }
+    }
+
+    function enterDemoMode() {
+      const demo = loadLocalDemo();
+      state.isCloudLive = false;
+      state.ui.authAlert = null;
+      state.merchant = demo.merchant;
+      applyTheme(state.merchant.theme_id || getBusinessConfig(state.merchant.category).defaultTheme);
+      state.products = demo.products;
+      state.orders = demo.orders;
+      state.coupons = demo.coupons;
+      state.offer_slides = demo.offer_slides;
+      state.customerProfile = demo.customerProfile;
+      showToast('Demo Mode active (saved locally in browser).', 'amber');
+      setMode('merchant');
+    }
+
+    async function handleLogout() {
+      if (state.isCloudLive && sb) {
+        try { await sb.auth.signOut(); } catch (e) {}
+      }
+      state.isCloudLive = false;
+      showToast('Logged out successfully.', 'navy');
+      setMode('auth');
+    }
+
+    async function openSuperAdmin() {
+      if (sb) {
+        try {
+          const { data, error } = await sb.from('merchants').select('*').order('created_at', { ascending: false });
+          if (!error && data && data.length > 0) {
+            state.adminMerchants = data;
+            state.isCloudLive = true;
+          } else {
+            state.adminMerchants = [state.merchant];
+          }
+        } catch (e) {
+          state.adminMerchants = [state.merchant];
+        }
+      } else {
+        state.adminMerchants = [state.merchant];
+      }
+      setMode('admin');
+    }
+
+    /**
+     * ============================================================================
+     * 6. MERCHANT ACTIONS (SYNCED TO SUPABASE OR LOCALSTORAGE)
+     * ============================================================================
+     */
+    async function toggleShopOpen() {
+      const next = !state.merchant.is_open;
+      state.merchant.is_open = next;
+      if (state.isCloudLive && sb) {
+        const { error } = await sb.from('merchants').update({ is_open: next }).eq('id', state.merchant.id);
+        if (error) showToast('Sync error: ' + error.message, 'red');
+      } else {
+        saveLocalDemo();
+      }
+      showToast(next ? 'Store is now OPEN!' : 'Store PAUSED (Closed).', next ? 'emerald' : 'amber');
+      renderApp();
+    }
+
+    async function updateMerchantPlan(merchantId, planStatus, addDays = 0) {
+      let subEnd = null;
+      if (addDays > 0) {
+        subEnd = new Date(Date.now() + addDays * 24 * 60 * 60 * 1000).toISOString();
+      }
+      const updates = { plan_status: planStatus };
+      if (subEnd) updates.subscription_ends_at = subEnd;
+
+      if (state.isCloudLive && sb) {
+        const { error } = await sb.from('merchants').update(updates).eq('id', merchantId);
+        if (error) {
+          showToast('Update failed: ' + error.message, 'red');
+          return;
+        }
+      }
+
+      if (state.merchant && state.merchant.id === merchantId) {
+        state.merchant = { ...state.merchant, ...updates };
+      }
+      const idx = state.adminMerchants.findIndex((m) => m.id === merchantId);
+      if (idx !== -1) state.adminMerchants[idx] = { ...state.adminMerchants[idx], ...updates };
+      saveLocalDemo();
+      showToast(`Plan updated → ${planStatus.toUpperCase()}`, 'emerald');
+      closeModal();
+      renderApp();
+    }
+
+    function openUpgradeModal() {
+      const isLocked = state.merchant.plan_status === 'expired' || state.merchant.plan_status === 'paused';
+      const upiUri = `upi://pay?pa=orderlink.saas@okaxis&pn=OrderLink%20Pro&am=199&cu=INR`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=6&data=${encodeURIComponent(upiUri)}`;
+
+      const root = document.getElementById('modal-root');
+      root.classList.remove('hidden');
+      root.innerHTML = `
+        <div class="fixed inset-0 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4" onclick="${isLocked ? '' : 'if(event.target===this) closeModal()'}">
+          <div class="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl space-y-4 animate-fade-in">
+            <div class="flex items-start justify-between">
+              <div>
+                <span class="px-2 py-0.5 ${isLocked ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800'} text-[10px] font-extrabold rounded-full uppercase">
+                  ${isLocked ? '🔒 Trial Expired — Soft Lock' : '⚡ Upgrade to OrderLink Pro'}
+                </span>
+                <h3 class="text-base font-extrabold text-slate-900 mt-1">Keep Your Store Live</h3>
+              </div>
+              ${isLocked ? '' : `<button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold text-sm">✕</button>`}
+            </div>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div class="p-3 rounded-2xl border border-slate-200 bg-slate-50 space-y-1">
+                <p class="text-[11px] font-bold text-slate-500">Monthly Pro</p>
+                <p class="text-xl font-extrabold text-slate-900">₹199<span class="text-[10px] font-medium text-slate-400">/mo</span></p>
+                <button onclick="updateMerchantPlan('${state.merchant.id}', 'active', 30)" class="w-full mt-2 py-2 bg-[#0F172A] text-white text-[11px] font-bold rounded-xl">Razorpay Test</button>
+              </div>
+              <div class="p-3 rounded-2xl border-2 border-amber-400 bg-amber-50/40 space-y-1 relative">
+                <span class="absolute -top-2 right-2 px-1.5 py-0.5 bg-amber-500 text-white text-[9px] font-extrabold rounded-full">SAVE 37%</span>
+                <p class="text-[11px] font-bold text-amber-900">Annual Pro</p>
+                <p class="text-xl font-extrabold text-slate-900">₹1,499<span class="text-[10px] font-medium text-slate-400">/yr</span></p>
+                <button onclick="updateMerchantPlan('${state.merchant.id}', 'active', 365)" class="w-full mt-2 py-2 bg-amber-500 text-white text-[11px] font-extrabold rounded-xl">Razorpay Test</button>
+              </div>
+            </div>
+
+            <div class="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3 flex items-center gap-3">
+              <img src="${qrUrl}" alt="UPI QR" class="w-16 h-16 rounded-xl bg-white p-1 border border-emerald-200 shrink-0" />
+              <div class="text-[11px] space-y-1">
+                <p class="font-extrabold text-emerald-900">Zero-Fee Direct UPI</p>
+                <p class="text-slate-600">Scan &amp; send screenshot on WhatsApp for instant activation.</p>
+              </div>
+            </div>
+
+            ${isLocked ? `<button onclick="updateMerchantPlan('${state.merchant.id}', 'trial', 0)" class="w-full py-2 text-xs font-bold text-slate-400 hover:text-slate-700">Reset to Trial (Demo)</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    // ORDERS: Status, Payment, Invoice, CSV
+    async function updateOrderField(orderId, fields) {
+      if (state.isCloudLive && sb) {
+        const { error } = await sb.from('orders').update(fields).eq('id', orderId);
+        if (error) { showToast('Order update failed: ' + error.message, 'red'); return; }
+      }
+      const o = state.orders.find((x) => x.id === orderId);
+      if (o) Object.assign(o, fields);
+      saveLocalDemo();
+      showToast('Order updated!', 'emerald');
+      renderApp();
+    }
+
+    function sendWhatsAppOrderUpdate(orderId, type) {
+      const o = state.orders.find((x) => x.id === orderId);
+      if (!o) return;
+      const shop = state.merchant.shop_name;
+      const msgs = {
+        packed: `Hi ${o.customer_name}! 📦 Your order *${o.order_code}* from *${shop}* is packed and ready for dispatch.`,
+        delivery: `Hi ${o.customer_name}! 🛵 Your order *${o.order_code}* (${formatINR(o.total)}) from *${shop}* is *Out for Delivery*!`,
+        payment: `Hi ${o.customer_name}, payment reminder for *${o.order_code}* (${formatINR(o.total)}) at *${shop}*. UPI: *${state.merchant.upi_id || 'Ask on chat'}*. Thank you!`,
+      };
+      const phone = (o.customer_phone || '').replace(/\D/g, '');
+      const fullPhone = phone.length === 10 ? `91${phone}` : phone;
+      window.open(`https://wa.me/${fullPhone}?text=${encodeURIComponent(msgs[type] || msgs.packed)}`, '_blank', 'noopener,noreferrer');
+    }
+
+    function openInvoiceModal(orderId) {
+      const o = state.orders.find((x) => x.id === orderId);
+      if (!o) return;
+      const dateStr = new Date(o.created_at || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const root = document.getElementById('modal-root');
+      root.classList.remove('hidden');
+      root.innerHTML = `
+        <div class="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4" onclick="if(event.target===this) closeModal()">
+          <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-fade-in">
+            <div id="printable-invoice" class="p-6 space-y-4 text-slate-900 bg-white">
+              <div class="flex items-start justify-between border-b border-slate-200 pb-3">
+                <div>
+                  <h2 class="text-lg font-extrabold">${escapeHTML(state.merchant.shop_name)}</h2>
+                  <p class="text-[11px] text-slate-500">${escapeHTML(state.merchant.city)} • +${escapeHTML(state.merchant.whatsapp_number)}</p>
+                </div>
+                <div class="text-right">
+                  <span class="px-2 py-0.5 bg-slate-900 text-white text-[10px] font-bold rounded">INVOICE</span>
+                  <p class="text-xs font-extrabold font-mono mt-1">${escapeHTML(o.order_code)}</p>
+                  <p class="text-[11px] text-slate-500">${dateStr}</p>
+                </div>
+              </div>
+              <div class="bg-slate-50 rounded-xl p-3 text-xs space-y-0.5">
+                <p class="font-bold">${escapeHTML(o.customer_name)} (${escapeHTML(o.customer_phone)})</p>
+                <p class="text-slate-600">${escapeHTML(o.customer_address)}</p>
+                <p class="text-slate-500 text-[11px]">Slot: ${escapeHTML(o.delivery_slot || 'Standard')}</p>
+              </div>
+              <table class="w-full text-xs">
+                <thead><tr class="border-b border-slate-200 text-slate-500 text-left"><th class="py-1.5">Item</th><th class="py-1.5 text-center">Qty</th><th class="py-1.5 text-right">Amount</th></tr></thead>
+                <tbody class="divide-y divide-slate-100">
+                  ${(o.items || []).map((i) => `<tr><td class="py-1.5 font-semibold">${escapeHTML(i.name)} ${i.variant ? `(${escapeHTML(i.variant)})` : ''}</td><td class="py-1.5 text-center">${i.qty}</td><td class="py-1.5 text-right font-bold">${formatINR(i.price * i.qty)}</td></tr>`).join('')}
+                </tbody>
+              </table>
+              <div class="border-t border-slate-200 pt-2.5 space-y-1 text-xs">
+                <div class="flex justify-between text-slate-600"><span>Subtotal</span><span>${formatINR(o.subtotal)}</span></div>
+                ${o.discount > 0 ? `<div class="flex justify-between text-emerald-600 font-bold"><span>Discount (${escapeHTML(o.coupon_code)})</span><span>-${formatINR(o.discount)}</span></div>` : ''}
+                <div class="flex justify-between text-slate-600"><span>Delivery</span><span>${o.delivery_fee > 0 ? formatINR(o.delivery_fee) : 'FREE'}</span></div>
+                <div class="flex justify-between text-base font-extrabold pt-1.5 border-t border-slate-200"><span>Grand Total</span><span>${formatINR(o.total)}</span></div>
+              </div>
+            </div>
+            <div class="no-print bg-slate-50 px-5 py-3 border-t border-slate-100 grid grid-cols-2 gap-2">
+              <button onclick="window.print()" class="py-2.5 bg-[#0F172A] text-white font-bold text-xs rounded-xl">🖨️ Print / Save PDF</button>
+              <button onclick="closeModal()" class="py-2.5 bg-white border border-slate-200 text-slate-700 font-bold text-xs rounded-xl">Close</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function exportOrdersCSV() {
+      const headers = ['Order Code', 'Date', 'Customer', 'Phone', 'Subtotal', 'Discount', 'Delivery', 'Total', 'Payment', 'Status'];
+      const rows = state.orders.map((o) => [
+        o.order_code, new Date(o.created_at).toLocaleDateString('en-IN'),
+        `"${(o.customer_name || '').replace(/"/g, '""')}"`, o.customer_phone,
+        o.subtotal, o.discount || 0, o.delivery_fee || 0, o.total, o.payment_status, o.order_status,
+      ]);
+      const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${state.merchant.slug || 'orderlink'}-orders.csv`; a.click();
+      URL.revokeObjectURL(url);
+      showToast('Orders CSV exported!', 'emerald');
+    }
+
+    // CATALOG: Add/Edit Product + Supabase Storage 'shop-assets' Upload
+    function openProductModal(prodId = null) {
+      const editing = prodId ? state.products.find((p) => p.id === prodId) : null;
+      const biz = getBusinessConfig(state.merchant.category);
+      const catOptions = [...new Set([...biz.categories, 'Best Sellers', 'General'])];
+      const variants = editing && Array.isArray(editing.variants) && editing.variants.length
+        ? editing.variants : [{ label: biz.isService ? 'Standard Visit' : 'Standard', price: editing ? editing.price : 499, mrp: editing ? editing.mrp : '' }];
+
+      const root = document.getElementById('modal-root');
+      root.classList.remove('hidden');
+      root.innerHTML = `
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center" onclick="if(event.target===this) closeModal()">
+          <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 max-h-[90vh] overflow-y-auto animate-slide-up space-y-3.5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-base font-extrabold text-slate-900">${editing ? 'Edit Item' : (biz.isService ? 'Add New Service' : 'Add New Product')}</h3>
+              <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold text-sm">✕</button>
+            </div>
+            <form onsubmit="saveProductForm(event, '${prodId || ''}')" class="space-y-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Image (Upload to Storage or URL)</label>
+                <div class="flex gap-2">
+                  <input id="pm-img-url" type="url" value="${editing ? escapeHTML(editing.image_url) : ''}" placeholder="https://..." class="flex-1 px-3 py-2 rounded-xl border border-slate-200 text-xs" />
+                  <label class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl cursor-pointer shrink-0">
+                    📷 Upload
+                    <input id="pm-img-file" type="file" accept="image/*" class="hidden" onchange="handleProductImageFile(event)" />
+                  </label>
+                </div>
+                <p id="pm-upload-status" class="text-[10px] text-slate-400 mt-1"></p>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">${biz.isService ? 'Service Name *' : 'Product Name *'}</label>
+                <input id="pm-name" type="text" required value="${editing ? escapeHTML(editing.name) : ''}" placeholder="${biz.isService ? 'e.g., Split AC Jet Service' : 'e.g., Castrol Engine Oil 1L'}" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold" />
+              </div>
+              <div class="grid ${biz.isFood ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Category</label>
+                  <select id="pm-cat" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white">
+                    ${catOptions.map((c) => `<option value="${escapeHTML(c)}" ${editing && editing.category === c ? 'selected' : ''}>${escapeHTML(c)}</option>`).join('')}
+                  </select>
+                </div>
+                ${biz.isFood ? `
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Dietary</label>
+                    <select id="pm-diet" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white">
+                      <option value="veg" ${editing && editing.dietary === 'veg' ? 'selected' : ''}>🟢 100% Veg</option>
+                      <option value="egg" ${editing && editing.dietary === 'egg' ? 'selected' : ''}>🟡 Contains Egg</option>
+                      <option value="non-veg" ${editing && editing.dietary === 'non-veg' ? 'selected' : ''}>🔴 Non-Veg</option>
+                      <option value="none" ${editing && editing.dietary === 'none' ? 'selected' : ''}>None</option>
+                    </select>
+                  </div>
+                ` : `<input id="pm-diet" type="hidden" value="none" />`}
+              </div>
+
+              <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-extrabold text-slate-800">Variants &amp; Prices (₹)</span>
+                  <button type="button" onclick="document.getElementById('pm-vars').insertAdjacentHTML('beforeend', renderVarRow())" class="text-[11px] font-bold text-blue-600">+ Add</button>
+                </div>
+                <div id="pm-vars" class="space-y-1.5">
+                  ${variants.map((v) => renderVarRow(v.label, v.price, v.mrp || '')).join('')}
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Description</label>
+                <textarea id="pm-desc" rows="2" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs resize-none">${editing ? escapeHTML(editing.description) : ''}</textarea>
+              </div>
+              <button id="pm-save-btn" type="submit" class="w-full py-3 bg-brand-primary text-white font-bold text-sm rounded-2xl shadow-md">
+                ${editing ? 'Update Item' : 'Save & Publish'}
+              </button>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderVarRow(label = '', price = '', mrp = '') {
+      return `
+        <div class="grid grid-cols-12 gap-1.5 items-center pm-var-row">
+          <input type="text" placeholder="500g" value="${escapeHTML(label)}" required class="col-span-5 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-xs pm-vl" />
+          <input type="number" placeholder="Price" value="${price}" required min="1" class="col-span-3 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-bold pm-vp" />
+          <input type="number" placeholder="MRP" value="${mrp}" class="col-span-3 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-xs pm-vm" />
+          <button type="button" onclick="if(document.querySelectorAll('.pm-var-row').length>1) this.parentElement.remove()" class="col-span-1 text-rose-500 font-bold text-xs">✕</button>
+        </div>
+      `;
+    }
+
+    async function handleProductImageFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById('pm-upload-status');
+      const urlInput = document.getElementById('pm-img-url');
+      if (statusEl) statusEl.textContent = 'Uploading image...';
+
+      if (state.isCloudLive && sb) {
+        try {
+          const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+          const path = `${state.merchant.id}/${Date.now()}.${ext}`;
+          const { error } = await sb.storage.from('shop-assets').upload(path, file, { upsert: true });
+          if (!error) {
+            const { data } = sb.storage.from('shop-assets').getPublicUrl(path);
+            if (data && data.publicUrl) {
+              urlInput.value = data.publicUrl;
+              if (statusEl) statusEl.textContent = '✓ Uploaded to Supabase Storage!';
+              return;
+            }
+          }
+        } catch (e) {}
+      }
+
+      // Fallback to compressed DataURL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        urlInput.value = e.target.result;
+        if (statusEl) statusEl.textContent = '✓ Image attached (local preview).';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function saveProductForm(e, prodId) {
+      e.preventDefault();
+      const name = document.getElementById('pm-name').value.trim();
+      const category = document.getElementById('pm-cat').value;
+      const dietary = document.getElementById('pm-diet').value;
+      const image_url = document.getElementById('pm-img-url').value.trim() || FALLBACK_IMG;
+      const description = document.getElementById('pm-desc').value.trim();
+
+      const variants = [];
+      document.querySelectorAll('.pm-var-row').forEach((r) => {
+        const label = r.querySelector('.pm-vl').value.trim() || 'Standard';
+        const price = Number(r.querySelector('.pm-vp').value) || 0;
+        const mrp = Number(r.querySelector('.pm-vm').value) || null;
+        if (price > 0) variants.push({ label, price, mrp: mrp && mrp > price ? mrp : null });
+      });
+      if (!name || !variants.length) return;
+
+      const payload = {
+        merchant_id: state.merchant.id,
+        name, category, dietary, image_url, description,
+        price: variants[0].price,
+        mrp: variants[0].mrp,
+        variants,
+        in_stock: true,
+        is_bestseller: category === 'Best Sellers',
+      };
+
+      if (state.isCloudLive && sb) {
+        if (prodId) {
+          const { data, error } = await sb.from('products').update(payload).eq('id', prodId).select().single();
+          if (error) { showToast(error.message, 'red'); return; }
+          const idx = state.products.findIndex((p) => p.id === prodId);
+          if (idx !== -1) state.products[idx] = data;
+        } else {
+          const { data, error } = await sb.from('products').insert(payload).select().single();
+          if (error) { showToast(error.message, 'red'); return; }
+          state.products.unshift(data);
+        }
+      } else {
+        if (prodId) {
+          const idx = state.products.findIndex((p) => p.id === prodId);
+          if (idx !== -1) state.products[idx] = { ...state.products[idx], ...payload };
+        } else {
+          state.products.unshift({ id: 'prod-' + Date.now(), ...payload });
+        }
+        saveLocalDemo();
+      }
+
+      showToast(prodId ? 'Product updated!' : 'Product added!', 'emerald');
+      closeModal();
+      renderApp();
+    }
+
+    async function toggleProductStock(prodId) {
+      const p = state.products.find((x) => x.id === prodId);
+      if (!p) return;
+      const next = !p.in_stock;
+      if (state.isCloudLive && sb) {
+        const { error } = await sb.from('products').update({ in_stock: next }).eq('id', prodId);
+        if (error) { showToast(error.message, 'red'); return; }
+      }
+      p.in_stock = next;
+      saveLocalDemo();
+      renderApp();
+    }
+
+    async function deleteProduct(prodId) {
+      if (state.isCloudLive && sb) {
+        const { error } = await sb.from('products').delete().eq('id', prodId);
+        if (error) { showToast(error.message, 'red'); return; }
+      }
+      state.products = state.products.filter((x) => x.id !== prodId);
+      saveLocalDemo();
+      showToast('Product removed.', 'navy');
+      renderApp();
+    }
+
+    function openBulkCsvModal() {
+      const root = document.getElementById('modal-root');
+      root.classList.remove('hidden');
+      root.innerHTML = `
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" onclick="if(event.target===this) closeModal()">
+          <div class="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl space-y-3 animate-fade-in">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-extrabold">Bulk CSV Upload</h3>
+              <button onclick="closeModal()" class="w-7 h-7 rounded-full bg-slate-100 text-xs font-bold">✕</button>
+            </div>
+            <p class="text-xs text-slate-500">Format: <strong>Name,Category,Price,MRP,Description</strong></p>
+            <label class="block border-2 border-dashed border-slate-300 rounded-2xl p-5 text-center cursor-pointer bg-slate-50">
+              <input type="file" accept=".csv,text/csv" onchange="handleBulkCSV(event)" class="hidden" />
+              <span class="text-xs font-extrabold text-slate-800">Select .CSV File</span>
+            </label>
+          </div>
+        </div>
+      `;
+    }
+
+    function handleBulkCSV(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const lines = e.target.result.split(/\r?\n/).filter((l) => l.trim());
+        const batch = [];
+        for (let i = 1; i < lines.length; i++) {
+          const [name, category, priceStr, mrpStr, description] = lines[i].split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+          const price = Number(priceStr);
+          if (name && price > 0) {
+            batch.push({
+              merchant_id: state.merchant.id,
+              name, category: category || 'General', description: description || '',
+              price, mrp: Number(mrpStr) || null, image_url: FALLBACK_IMG,
+              dietary: 'veg', in_stock: true, is_bestseller: false,
+              variants: [{ label: 'Standard', price, mrp: Number(mrpStr) || null }],
+            });
+          }
+        }
+        if (batch.length) {
+          if (state.isCloudLive && sb) {
+            const { data, error } = await sb.from('products').insert(batch).select();
+            if (!error && data) state.products = [...data, ...state.products];
+          } else {
+            batch.forEach((b, idx) => state.products.unshift({ id: 'csv-' + Date.now() + idx, ...b }));
+            saveLocalDemo();
+          }
+          showToast(`Imported ${batch.length} products!`, 'emerald');
+        }
+        closeModal();
+        renderApp();
+      };
+      reader.readAsText(file);
+    }
+
+    // SETTINGS, COUPONS & OFFER SLIDES
+    function selectSignupCategory(cat) {
+      const biz = getBusinessConfig(cat);
+      state.ui.signupTheme = biz.defaultTheme;
+      applyTheme(biz.defaultTheme);
+      document.querySelectorAll('.su-swatch').forEach((el) => {
+        el.classList.toggle('ring-2', el.dataset.theme === biz.defaultTheme);
+        el.classList.toggle('ring-offset-2', el.dataset.theme === biz.defaultTheme);
+        el.classList.toggle('ring-slate-900', el.dataset.theme === biz.defaultTheme);
+      });
+    }
+
+    function selectSignupTheme(themeId) {
+      state.ui.signupTheme = themeId;
+      applyTheme(themeId);
+      document.querySelectorAll('.su-swatch').forEach((el) => {
+        el.classList.toggle('ring-2', el.dataset.theme === themeId);
+        el.classList.toggle('ring-offset-2', el.dataset.theme === themeId);
+        el.classList.toggle('ring-slate-900', el.dataset.theme === themeId);
+      });
+    }
+
+    async function selectMerchantTheme(themeId) {
+      state.merchant.theme_id = themeId;
+      applyTheme(themeId);
+      if (state.isCloudLive && sb) {
+        // Attempt saving theme_id gracefully; ignore if column doesn't exist in Supabase table
+        await sb.from('merchants').update({ theme_id: themeId }).eq('id', state.merchant.id);
+      } else {
+        saveLocalDemo();
+      }
+      showToast(`Theme applied: ${THEME_PALETTES[themeId].name}`, 'emerald');
+      renderApp();
+    }
+
+    function onSettingsCategoryChange(cat) {
+      const biz = getBusinessConfig(cat);
+      state.merchant.category = cat;
+      state.merchant.theme_id = biz.defaultTheme;
+      applyTheme(biz.defaultTheme);
+      showToast(`Switched to ${cat}`, 'navy');
+    }
+
+    async function saveMerchantSettings(e) {
+      e.preventDefault();
+      const category = document.getElementById('set-cat').value;
+      const coreUpdates = {
+        shop_name: document.getElementById('set-name').value.trim(),
+        category,
+        whatsapp_number: document.getElementById('set-wa').value.replace(/\D/g, ''),
+        upi_id: document.getElementById('set-upi').value.trim(),
+        city: document.getElementById('set-city').value.trim(),
+        delivery_fee: Number(document.getElementById('set-fee').value) || 0,
+        free_delivery_above: Number(document.getElementById('set-free').value) || 0,
+      };
+      const theme_id = state.merchant.theme_id || getBusinessConfig(category).defaultTheme;
+      applyTheme(theme_id);
+
+      if (state.isCloudLive && sb) {
+        let res = await sb.from('merchants').update({ ...coreUpdates, theme_id }).eq('id', state.merchant.id);
+        if (res.error && (res.error.message || '').toLowerCase().includes('theme_id')) {
+          res = await sb.from('merchants').update(coreUpdates).eq('id', state.merchant.id);
+        }
+        if (res.error) { showToast(res.error.message, 'red'); return; }
+      }
+      state.merchant = { ...state.merchant, ...coreUpdates, theme_id };
+      saveLocalDemo();
+      showToast('Shop settings & theme saved!', 'emerald');
+      renderApp();
+    }
+
+    async function addCouponForm(e) {
+      e.preventDefault();
+      const code = document.getElementById('cp-code').value.trim().toUpperCase();
+      const discount_type = document.getElementById('cp-type').value;
+      const discount_value = Number(document.getElementById('cp-val').value) || 0;
+      if (!code || discount_value <= 0) return;
+
+      const payload = { merchant_id: state.merchant.id, code, discount_type, discount_value, min_order: 0, is_active: true };
+      if (state.isCloudLive && sb) {
+        const { data, error } = await sb.from('coupons').insert(payload).select().single();
+        if (error) { showToast(error.message, 'red'); return; }
+        state.coupons.unshift(data);
+      } else {
+        state.coupons.unshift({ id: 'cp-' + Date.now(), ...payload });
+        saveLocalDemo();
+      }
+      showToast(`Coupon ${code} added!`, 'emerald');
+      renderApp();
+    }
+
+    async function deleteCoupon(id) {
+      if (state.isCloudLive && sb) {
+        await sb.from('coupons').delete().eq('id', id);
+      }
+      state.coupons = state.coupons.filter((c) => c.id !== id);
+      saveLocalDemo();
+      renderApp();
+    }
+
+    async function addOfferSlide(e) {
+      e.preventDefault();
+      const payload = {
+        merchant_id: state.merchant.id,
+        badge: document.getElementById('sl-badge').value.trim().toUpperCase(),
+        title: document.getElementById('sl-title').value.trim(),
+        subtitle: document.getElementById('sl-sub').value.trim(),
+        cta_text: 'Shop Now',
+        filter_category: 'All',
+        theme: document.getElementById('sl-theme').value,
+        image_url: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=300&q=80',
+        is_active: true,
+      };
+      if (state.isCloudLive && sb) {
+        const { data, error } = await sb.from('offer_slides').insert(payload).select().single();
+        if (error) { showToast(error.message, 'red'); return; }
+        state.offer_slides.unshift(data);
+      } else {
+        state.offer_slides.unshift({ id: 'sl-' + Date.now(), ...payload });
+        saveLocalDemo();
+      }
+      showToast('Offer slide published!', 'emerald');
+      renderApp();
+    }
+
+    async function toggleSlideActive(id) {
+      const s = state.offer_slides.find((x) => x.id === id);
+      if (!s) return;
+      const next = !s.is_active;
+      if (state.isCloudLive && sb) await sb.from('offer_slides').update({ is_active: next }).eq('id', id);
+      s.is_active = next;
+      saveLocalDemo();
+      renderApp();
+    }
+
+    async function deleteSlide(id) {
+      if (state.isCloudLive && sb) await sb.from('offer_slides').delete().eq('id', id);
+      state.offer_slides = state.offer_slides.filter((x) => x.id !== id);
+      saveLocalDemo();
+      renderApp();
+    }
+
+    /**
+     * ============================================================================
+     * 7. CUSTOMER STOREFRONT, CART, PROFILE & WHATSAPP CHECKOUT
+     * ============================================================================
+     */
+    function stopAutoSlide() {
+      if (slideTimer) { clearInterval(slideTimer); slideTimer = null; }
+    }
+
+    function startAutoSlide() {
+      stopAutoSlide();
+      const active = state.offer_slides.filter((s) => s.is_active);
+      if (state.ui.mode !== 'store' || active.length <= 1) return;
+      slideTimer = setInterval(() => {
+        const track = document.getElementById('offer-track');
+        if (!track) return;
+        const next = (state.ui.activeSlideIndex + 1) % active.length;
+        state.ui.activeSlideIndex = next;
+        track.scrollTo({ left: next * track.clientWidth, behavior: 'smooth' });
+      }, 3800);
+    }
+
+    function updateCartQty(prodId, varIdx, delta) {
+      const m = state.merchant;
+      if (!m.is_open || m.plan_status === 'expired' || m.plan_status === 'paused') {
+        showToast('Ordering is currently paused by this store.', 'amber');
+        return;
+      }
+      const key = `${prodId}__${varIdx}`;
+      const next = (state.cart[key] || 0) + delta;
+      if (next <= 0) delete state.cart[key];
+      else state.cart[key] = next;
+      renderApp();
+    }
+
+    function getCartSummary() {
+      let count = 0;
+      let subtotal = 0;
+      const items = [];
+      for (const [key, qty] of Object.entries(state.cart)) {
+        if (qty <= 0) continue;
+        const [prodId, varIdxStr] = key.split('__');
+        const varIdx = Number(varIdxStr) || 0;
+        const p = state.products.find((x) => x.id === prodId && x.in_stock);
+        if (!p) continue;
+        const vars = Array.isArray(p.variants) && p.variants.length ? p.variants : [{ label: 'Standard', price: p.price }];
+        const v = vars[varIdx] || vars[0];
+        count += qty;
+        subtotal += Number(v.price) * qty;
+        items.push({ product_id: p.id, name: p.name, variant: v.label, qty, price: Number(v.price) });
+      }
+
+      let discount = 0;
+      let couponCode = '';
+      if (state.appliedCoupon && subtotal >= (Number(state.appliedCoupon.min_order) || 0)) {
+        couponCode = state.appliedCoupon.code;
+        discount = state.appliedCoupon.discount_type === 'percent'
+          ? Math.round((subtotal * Number(state.appliedCoupon.discount_value)) / 100)
+          : Math.min(subtotal, Number(state.appliedCoupon.discount_value));
+      }
+
+      const threshold = Number(state.merchant.free_delivery_above) || 500;
+      const fee = subtotal === 0 || subtotal >= threshold ? 0 : (Number(state.merchant.delivery_fee) || 0);
+      const total = Math.max(0, subtotal - discount + fee);
+      return { count, subtotal, discount, couponCode, deliveryFee: fee, total, threshold, items };
+    }
+
+    function applyCoupon() {
+      const code = (document.getElementById('co-coupon')?.value || '').trim().toUpperCase();
+      const found = state.coupons.find((c) => c.code.toUpperCase() === code && c.is_active);
+      if (!found) { showToast('Invalid coupon code.', 'red'); return; }
+      const { subtotal } = getCartSummary();
+      if (subtotal < (Number(found.min_order) || 0)) {
+        showToast(`Minimum order ${formatINR(found.min_order)} required.`, 'amber');
+        return;
+      }
+      state.appliedCoupon = found;
+      showToast(`Coupon ${found.code} applied!`, 'emerald');
+      openCheckoutModal();
+    }
+
+    function openCheckoutModal() {
+      const c = getCartSummary();
+      if (c.count === 0) return;
+      const cp = state.customerProfile;
+      const defAddr = (cp.addresses && cp.addresses.find((a) => a.isDefault)) || (cp.addresses && cp.addresses[0]);
+      const upiUri = `upi://pay?pa=${encodeURIComponent(state.merchant.upi_id || 'shop@upi')}&pn=${encodeURIComponent(state.merchant.shop_name)}&am=${c.total}&cu=INR`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=6&data=${encodeURIComponent(upiUri)}`;
+
+      const root = document.getElementById('modal-root');
+      root.classList.remove('hidden');
+      root.innerHTML = `
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-end justify-center" onclick="if(event.target===this) closeModal()">
+          <div class="bg-white rounded-t-3xl w-full max-w-md p-5 pb-7 shadow-2xl max-h-[92vh] overflow-y-auto animate-slide-up space-y-3.5">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-base font-extrabold">Checkout &amp; WhatsApp Order</h3>
+                <p class="text-xs text-slate-500">${c.count} items • Payable ${formatINR(c.total)}</p>
+              </div>
+              <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 text-sm font-bold">✕</button>
+            </div>
+
+            <!-- Coupon Input -->
+            <div class="bg-slate-50 rounded-2xl p-2.5 border border-slate-200">
+              ${c.couponCode
+                ? `<div class="flex items-center justify-between text-xs"><span class="font-bold text-emerald-700">🎉 ${escapeHTML(c.couponCode)} (-${formatINR(c.discount)})</span><button onclick="state.appliedCoupon=null; openCheckoutModal();" class="text-rose-600 font-bold">Remove</button></div>`
+                : `<div class="flex gap-2"><input id="co-coupon" type="text" placeholder="Coupon (Try DIWALI10 / SAVE100)" class="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs uppercase font-bold" /><button type="button" onclick="applyCoupon()" class="px-3 py-2 bg-[#0F172A] text-white text-xs font-bold rounded-xl">Apply</button></div>`
+              }
+            </div>
+
+            <!-- Bill Summary -->
+            <div class="bg-slate-50 rounded-2xl p-3 text-xs space-y-1">
+              ${c.items.map((i) => `<div class="flex justify-between"><span class="truncate pr-2">${i.qty}x ${escapeHTML(i.name)} (${escapeHTML(i.variant)})</span><span class="font-bold">${formatINR(i.price * i.qty)}</span></div>`).join('')}
+              <div class="border-t border-slate-200 pt-1 flex justify-between text-slate-600"><span>Delivery</span><span>${c.deliveryFee > 0 ? formatINR(c.deliveryFee) : '<strong class="text-emerald-600">FREE</strong>'}</span></div>
+              <div class="flex justify-between text-sm font-extrabold pt-1 border-t border-slate-200"><span>Total</span><span>${formatINR(c.total)}</span></div>
+            </div>
+
+            <form onsubmit="submitWhatsAppOrder(event)" class="space-y-2.5">
+              <div class="grid grid-cols-2 gap-2">
+                <input id="co-name" type="text" required value="${cp.isLoggedIn ? escapeHTML(cp.name) : ''}" placeholder="Your Name *" class="px-3 py-2.5 rounded-xl border border-slate-200 text-xs" />
+                <input id="co-phone" type="tel" required value="${cp.isLoggedIn ? escapeHTML(cp.phone) : ''}" placeholder="WhatsApp No. *" class="px-3 py-2.5 rounded-xl border border-slate-200 text-xs" />
+              </div>
+              <textarea id="co-addr" rows="2" required placeholder="Full Delivery Address *" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs resize-none">${cp.isLoggedIn && defAddr ? escapeHTML(defAddr.text) : ''}</textarea>
+              <select id="co-slot" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white font-semibold">
+                <option value="Morning (9 AM - 12 PM)">🌅 Morning (9 AM - 12 PM)</option>
+                <option value="Afternoon (12 PM - 4 PM)">☀️ Afternoon (12 PM - 4 PM)</option>
+                <option value="Evening (4 PM - 8 PM)" selected>🌆 Evening (4 PM - 8 PM)</option>
+              </select>
+
+              <!-- Direct UPI QR Option -->
+              ${state.merchant.upi_id ? `
+                <div class="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-2.5 flex items-center gap-3">
+                  <img src="${qrUrl}" alt="UPI" class="w-16 h-16 rounded-lg bg-white p-1 border border-emerald-200 shrink-0" />
+                  <div class="text-[11px] space-y-0.5">
+                    <p class="font-extrabold text-emerald-900">Optional: Pay via UPI Now</p>
+                    <p class="font-mono text-slate-600">${escapeHTML(state.merchant.upi_id)}</p>
+                    <a href="${upiUri}" class="inline-block px-2 py-0.5 bg-emerald-600 text-white font-bold rounded text-[10px]">Open GPay / PhonePe</a>
+                  </div>
+                </div>
+              ` : ''}
+
+              <button id="co-submit-btn" type="submit" class="w-full py-3.5 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm rounded-2xl shadow-md">
+                ${t('orderOnWa')} (${formatINR(c.total)})
+              </button>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    async function submitWhatsAppOrder(e) {
+      e.preventDefault();
+      const customer_name = document.getElementById('co-name').value.trim();
+      const customer_phone = document.getElementById('co-phone').value.replace(/\D/g, '');
+      const customer_address = document.getElementById('co-addr').value.trim();
+      const delivery_slot = document.getElementById('co-slot').value;
+      const c = getCartSummary();
+      if (!customer_name || !customer_phone || !c.items.length) return;
+
+      const order_code = `#ORD-${Math.floor(1000 + Math.random() * 8999)}`;
+      const payload = {
+        order_code,
+        merchant_id: state.merchant.id,
+        customer_name,
+        customer_phone,
+        customer_address,
+        delivery_slot,
+        items: c.items,
+        subtotal: c.subtotal,
+        discount: c.discount,
+        coupon_code: c.couponCode || null,
+        delivery_fee: c.deliveryFee,
+        total: c.total,
+        payment_status: 'Pending',
+        order_status: 'Pending',
+      };
+
+      if (state.isCloudLive && sb) {
+        const { data, error } = await sb.from('orders').insert(payload).select().single();
+        if (!error && data) state.orders.unshift(data);
+        else if (error) showToast('Saved locally (cloud sync warning): ' + error.message, 'amber');
+      } else {
+        state.orders.unshift({ id: 'ord-' + Date.now(), ...payload, created_at: new Date().toISOString() });
+        saveLocalDemo();
+      }
+
+      state.cart = {};
+      state.appliedCoupon = null;
+      closeModal();
+      renderApp();
+
+      const lines = c.items.map((i) => `• ${i.qty}x ${i.name} (${i.variant}) — ${formatINR(i.price * i.qty)}`).join('\n');
+      const msg =
+        `🛍️ *New Order — ${state.merchant.shop_name}*\nOrder ID: *${order_code}*\n\n${lines}\n\n` +
+        (c.discount > 0 ? `🎟️ Coupon (${c.couponCode}): -${formatINR(c.discount)}\n` : '') +
+        `🚚 Delivery: ${c.deliveryFee > 0 ? formatINR(c.deliveryFee) : 'FREE'}\n` +
+        `💰 *Total:* ${formatINR(c.total)}\n\n` +
+        `👤 ${customer_name} (${customer_phone})\n📍 ${customer_address}\n⏰ ${delivery_slot}`;
+
+      const wa = (state.merchant.whatsapp_number || '').replace(/\D/g, '');
+      window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer');
+      showToast(`Order ${order_code} placed!`, 'emerald');
+    }
+
+    // CUSTOMER PROFILE (QUICK MOBILE LOGIN + SUPABASE SYNC)
+    async function toggleWishlist(prodId) {
+      const list = state.customerProfile.wishlist || [];
+      const idx = list.indexOf(prodId);
+      if (idx === -1) { list.push(prodId); showToast('Added to Wishlist ❤️', 'emerald'); }
+      else { list.splice(idx, 1); showToast('Removed from Wishlist', 'navy'); }
+      state.customerProfile.wishlist = list;
+      await syncCustomerProfile();
+      renderApp();
+    }
+
+    async function syncCustomerProfile() {
+      const cp = state.customerProfile;
+      if (state.isCloudLive && sb && cp.isLoggedIn && cp.phone) {
+        await sb.from('customer_profiles').upsert({
+          phone: cp.phone,
+          name: cp.name,
+          addresses: cp.addresses || [],
+          wishlist: cp.wishlist || [],
+          updated_at: new Date().toISOString(),
+        });
+      } else {
+        saveLocalDemo();
+      }
+    }
+
+    async function handleCustomerLogin(e) {
+      e.preventDefault();
+      const name = document.getElementById('cp-name').value.trim();
+      const phone = document.getElementById('cp-phone').value.replace(/\D/g, '');
+      if (!name || phone.length < 10) { showToast('Enter valid name & 10-digit mobile.', 'amber'); return; }
+
+      state.customerProfile.isLoggedIn = true;
+      state.customerProfile.name = name;
+      state.customerProfile.phone = phone;
+
+      if (state.isCloudLive && sb) {
+        try {
+          const { data } = await sb.from('customer_profiles').select('*').eq('phone', phone).single();
+          if (data) {
+            state.customerProfile.name = data.name || name;
+            state.customerProfile.addresses = Array.isArray(data.addresses) ? data.addresses : [];
+            state.customerProfile.wishlist = Array.isArray(data.wishlist) ? data.wishlist : [];
+          } else {
+            await syncCustomerProfile();
+          }
+          const { data: myOrds } = await sb.from('orders').select('*').eq('customer_phone', phone).order('created_at', { ascending: false });
+          state.customerOrders = myOrds || [];
+        } catch (err) {}
+      } else {
+        saveLocalDemo();
+      }
+      showToast(`Welcome, ${state.customerProfile.name}!`, 'emerald');
+      openCustomerProfileModal('orders');
+      renderApp();
+    }
+
+    async function addCustomerAddress(e) {
+      e.preventDefault();
+      const label = document.getElementById('ca-label').value;
+      const text = document.getElementById('ca-text').value.trim();
+      if (!text) return;
+      state.customerProfile.addresses.forEach((a) => { a.isDefault = false; });
+      state.customerProfile.addresses.unshift({ id: 'a-' + Date.now(), label, text, isDefault: true });
+      await syncCustomerProfile();
+      showToast('Address saved!', 'emerald');
+      openCustomerProfileModal('addresses');
+    }
+
+    async function deleteCustomerAddress(id) {
+      state.customerProfile.addresses = state.customerProfile.addresses.filter((a) => a.id !== id);
+      await syncCustomerProfile();
+      openCustomerProfileModal('addresses');
+    }
+
+    function reorderOrder(orderId) {
+      const list = state.isCloudLive ? state.customerOrders : state.orders;
+      const o = list.find((x) => x.id === orderId);
+      if (!o) return;
+      (o.items || []).forEach((it) => {
+        const p = state.products.find((x) => x.id === it.product_id && x.in_stock);
+        if (!p) return;
+        const vars = Array.isArray(p.variants) && p.variants.length ? p.variants : [{ label: 'Standard', price: p.price }];
+        let vIdx = vars.findIndex((v) => v.label === it.variant);
+        if (vIdx < 0) vIdx = 0;
+        const key = `${p.id}__${vIdx}`;
+        state.cart[key] = (state.cart[key] || 0) + (it.qty || 1);
+      });
+      closeModal();
+      showToast(`Items from ${o.order_code} added to cart!`, 'emerald');
+      renderApp();
+    }
+
+    async function openCustomerProfileModal(tab = 'orders') {
+      const cp = state.customerProfile;
+      const root = document.getElementById('modal-root');
+      root.classList.remove('hidden');
+
+      if (!cp.isLoggedIn) {
+        root.innerHTML = `
+          <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center" onclick="if(event.target===this) closeModal()">
+            <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 pb-7 shadow-2xl animate-slide-up space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-base font-extrabold">Customer Quick Login</h3>
+                <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 text-sm font-bold">✕</button>
+              </div>
+              <p class="text-xs text-slate-500">Track live order status, save delivery addresses, and sync your wishlist.</p>
+              <form onsubmit="handleCustomerLogin(event)" class="space-y-3">
+                <input id="cp-name" type="text" required placeholder="Your Name" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm" />
+                <input id="cp-phone" type="tel" required placeholder="10-digit Mobile Number" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm" />
+                <button type="submit" class="w-full py-3 bg-[#0F172A] text-white font-bold text-sm rounded-2xl">Continue &rarr;</button>
+              </form>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (state.isCloudLive && sb && tab === 'orders') {
+        const { data } = await sb.from('orders').select('*').eq('customer_phone', cp.phone).order('created_at', { ascending: false });
+        if (data) state.customerOrders = data;
+      }
+
+      const myOrders = state.isCloudLive
+        ? state.customerOrders
+        : state.orders.filter((o) => (o.customer_phone || '').slice(-10) === (cp.phone || '').slice(-10));
+      const wishProducts = state.products.filter((p) => (cp.wishlist || []).includes(p.id));
+
+      let body = '';
+      if (tab === 'orders') {
+        body = myOrders.length
+          ? myOrders.map((o) => `
+              <div class="bg-slate-50 rounded-2xl p-3 border border-slate-200 space-y-1.5">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs font-extrabold font-mono">${escapeHTML(o.order_code)}</span>
+                  <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800">${escapeHTML(o.order_status)}</span>
+                </div>
+                <p class="text-xs text-slate-600">${(o.items || []).map((i) => `${i.qty}x ${escapeHTML(i.name)}`).join(', ')}</p>
+                <div class="flex justify-between items-center pt-1">
+                  <span class="text-xs font-extrabold">${formatINR(o.total)}</span>
+                  <button onclick="reorderOrder('${o.id}')" class="px-2.5 py-1 bg-[#0F172A] text-white text-[11px] font-bold rounded-lg">↻ Reorder</button>
+                </div>
+              </div>
+            `).join('')
+          : `<p class="text-center py-6 text-xs text-slate-400">No orders found for ${escapeHTML(cp.phone)}.</p>`;
+      } else if (tab === 'addresses') {
+        body = `
+          <div class="space-y-2.5">
+            ${(cp.addresses || []).map((a) => `
+              <div class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex justify-between gap-2 text-xs">
+                <div><p class="font-extrabold">${escapeHTML(a.label)}</p><p class="text-slate-600">${escapeHTML(a.text)}</p></div>
+                <button onclick="deleteCustomerAddress('${a.id}')" class="text-rose-600 font-bold shrink-0">✕</button>
+              </div>
+            `).join('')}
+            <form onsubmit="addCustomerAddress(event)" class="flex gap-1.5 pt-1">
+              <select id="ca-label" class="px-2 py-2 rounded-xl border border-slate-200 text-xs bg-white"><option>Home</option><option>Office</option></select>
+              <input id="ca-text" type="text" required placeholder="Add full address..." class="flex-1 px-2.5 py-2 rounded-xl border border-slate-200 text-xs" />
+              <button type="submit" class="px-3 py-2 bg-[#0F172A] text-white text-xs font-bold rounded-xl">Save</button>
+            </form>
+          </div>
+        `;
+      } else {
+        body = wishProducts.length
+          ? wishProducts.map((p) => `
+              <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center gap-2.5">
+                <img src="${escapeHTML(p.image_url)}" onerror="this.src='${FALLBACK_IMG}'" class="w-12 h-12 rounded-lg object-cover" />
+                <div class="flex-1 min-w-0"><p class="text-xs font-bold truncate">${escapeHTML(p.name)}</p><p class="text-xs font-extrabold">${formatINR(p.price)}</p></div>
+                <button onclick="updateCartQty('${p.id}', 0, 1); closeModal();" class="px-2.5 py-1.5 bg-[#0F172A] text-white text-[11px] font-bold rounded-lg">+ Add</button>
+              </div>
+            `).join('')
+          : `<p class="text-center py-6 text-xs text-slate-400">Wishlist is empty.</p>`;
+      }
+
+      root.innerHTML = `
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center" onclick="if(event.target===this) closeModal()">
+          <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 pb-7 shadow-2xl max-h-[85vh] overflow-y-auto animate-slide-up space-y-3.5">
+            <div class="flex items-center justify-between">
+              <div><h3 class="text-sm font-extrabold">${escapeHTML(cp.name)}</h3><p class="text-[11px] text-slate-500">📞 ${escapeHTML(cp.phone)}</p></div>
+              <div class="flex gap-2">
+                <button onclick="state.customerProfile.isLoggedIn=false; closeModal(); renderApp();" class="text-[11px] font-bold text-rose-600 px-2 py-1 bg-rose-50 rounded-lg">Logout</button>
+                <button onclick="closeModal()" class="w-7 h-7 rounded-full bg-slate-100 text-xs font-bold">✕</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+              <button onclick="openCustomerProfileModal('orders')" class="py-1.5 rounded-lg ${tab === 'orders' ? 'bg-white shadow-xs' : 'text-slate-500'}">Orders (${myOrders.length})</button>
+              <button onclick="openCustomerProfileModal('addresses')" class="py-1.5 rounded-lg ${tab === 'addresses' ? 'bg-white shadow-xs' : 'text-slate-500'}">Addresses</button>
+              <button onclick="openCustomerProfileModal('wishlist')" class="py-1.5 rounded-lg ${tab === 'wishlist' ? 'bg-white shadow-xs' : 'text-slate-500'}">Wishlist (${wishProducts.length})</button>
+            </div>
+            <div class="space-y-2">${body}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * ============================================================================
+     * 8. UI RENDERERS
+     * ============================================================================
+     */
+    function renderAuthScreen() {
+      const tab = state.ui.authTab;
+      const alertBox = state.ui.authAlert;
+      const bizNames = Object.keys(BUSINESS_TYPES);
+      return `
+        <div class="min-h-screen bg-brand-primary flex flex-col justify-between p-5 transition-colors">
+          <div class="pt-4 text-center space-y-1.5">
+            <div class="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 mx-auto flex items-center justify-center text-brand-accent font-extrabold text-lg">OL</div>
+            <h1 class="text-2xl font-extrabold text-white tracking-tight">OrderLink</h1>
+            <p class="text-xs text-slate-300">Single-Link Online Catalog &amp; WhatsApp Orders</p>
+          </div>
+
+          <div class="bg-white rounded-3xl p-5 shadow-2xl space-y-3.5 my-4">
+            <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+              <button onclick="state.ui.authTab='login'; state.ui.authAlert=null; renderApp();" class="py-2 rounded-lg ${tab === 'login' ? 'bg-brand-primary text-white' : 'text-slate-600'}">Merchant Login</button>
+              <button onclick="state.ui.authTab='signup'; state.ui.authAlert=null; renderApp();" class="py-2 rounded-lg ${tab === 'signup' ? 'bg-brand-primary text-white' : 'text-slate-600'}">Create New Shop</button>
+            </div>
+
+            ${alertBox ? `
+              <div class="p-3 rounded-2xl border text-xs space-y-2 ${alertBox.type === 'amber' ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-rose-50 border-rose-200 text-rose-900'}">
+                <p class="font-extrabold">${alertBox.type === 'amber' ? '⚠️' : '❌'} ${escapeHTML(alertBox.title)}</p>
+                <p class="leading-relaxed text-[11px]">${escapeHTML(alertBox.message)}</p>
+                <button type="button" onclick="enterDemoMode()" class="w-full py-2 bg-brand-primary text-white font-bold text-[11px] rounded-xl">⚡ Test Immediately in Local Demo Mode</button>
+              </div>
+            ` : ''}
+
+            ${tab === 'login' ? `
+              <form onsubmit="handleSupabaseLogin(event)" class="space-y-3">
+                <input id="login-email" type="email" required placeholder="Merchant Email" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm" />
+                <input id="login-pass" type="password" required placeholder="Password" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm" />
+                <button id="login-btn" type="submit" class="w-full py-3 bg-brand-primary text-white font-bold text-sm rounded-2xl">Login to Dashboard</button>
+              </form>
+            ` : `
+              <form onsubmit="handleSupabaseSignup(event)" class="space-y-2.5">
+                <div class="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] font-bold text-emerald-800 text-center">🎁 14-Day Free Trial • Live Supabase Store</div>
+                <input id="su-shop" type="text" required placeholder="Shop / Business Name *" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs" />
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="su-owner" type="text" required placeholder="Owner Name *" class="px-3 py-2 rounded-xl border border-slate-200 text-xs" />
+                  <input id="su-wa" type="tel" required placeholder="WhatsApp No. *" class="px-3 py-2 rounded-xl border border-slate-200 text-xs" />
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <input id="su-city" type="text" required placeholder="City (e.g., Ahmedabad)" class="px-3 py-2 rounded-xl border border-slate-200 text-xs" />
+                  <select id="su-cat" onchange="selectSignupCategory(this.value)" class="px-2 py-2 rounded-xl border border-slate-200 text-xs bg-white font-semibold">
+                    ${bizNames.map((b) => `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('')}
+                  </select>
+                </div>
+
+                <!-- Theme Color Swatches -->
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1.5">
+                  <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Brand Theme Color</span>
+                  <div class="flex items-center justify-between gap-1.5">
+                    ${Object.values(THEME_PALETTES).map((p) => `
+                      <button type="button" data-theme="${p.id}" onclick="selectSignupTheme('${p.id}')" title="${p.name}"
+                        class="su-swatch w-8 h-8 rounded-full flex items-center justify-center transition ${state.ui.signupTheme === p.id ? 'ring-2 ring-offset-2 ring-slate-900' : ''}"
+                        style="background: linear-gradient(135deg, ${p.primary} 55%, ${p.accent} 45%);">
+                      </button>
+                    `).join('')}
+                  </div>
+                </div>
+
+                <input id="su-email" type="email" required placeholder="Email Address *" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs" />
+                <input id="su-pass" type="password" required minlength="6" placeholder="Create Password (min 6 chars) *" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs" />
+                <button id="signup-btn" type="submit" class="w-full py-3 bg-brand-primary text-white font-bold text-sm rounded-2xl">Start 14-Day Free Trial</button>
+              </form>
+            `}
+
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+              <button onclick="enterDemoMode()" class="py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-extrabold text-[11px] rounded-xl">⚡ 1-Click Demo Mode</button>
+              <button onclick="openSuperAdmin()" class="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-[11px] rounded-xl">🛡️ Super Admin</button>
+            </div>
+          </div>
+
+          <p class="text-center text-[11px] text-slate-300">Powered by Supabase • Mobile-First PWA</p>
+        </div>
+      `;
+    }
+
+    function renderMerchantDashboard() {
+      const m = state.merchant;
+      const daysLeft = getTrialDaysLeft();
+      const pendingCount = state.orders.filter((o) => o.order_status === 'Pending').length;
+      const revenue = state.orders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+
+      let content = '';
+      if (state.ui.offersManagerOpen) {
+        content = `
+          <main class="p-4 space-y-4 pb-24">
+            <div class="flex items-center justify-between">
+              <button onclick="state.ui.offersManagerOpen=false; renderApp();" class="text-xs font-extrabold text-slate-700">&larr; Back</button>
+              <h2 class="text-sm font-extrabold">Storefront Offer Slides</h2>
+            </div>
+            <form onsubmit="addOfferSlide(event)" class="bg-white p-4 rounded-2xl border border-slate-100 space-y-2.5">
+              <div class="grid grid-cols-2 gap-2">
+                <input id="sl-badge" type="text" required placeholder="Badge (e.g., 20% OFF)" class="px-3 py-2 rounded-xl border border-slate-200 text-xs uppercase font-bold" />
+                <select id="sl-theme" class="px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white">
+                  <option value="navy">Navy</option><option value="amber">Gold</option><option value="emerald">Emerald</option><option value="rose">Rose</option>
+                </select>
+              </div>
+              <input id="sl-title" type="text" required placeholder="Offer Headline *" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold" />
+              <input id="sl-sub" type="text" placeholder="Subtitle..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs" />
+              <button type="submit" class="w-full py-2.5 bg-[#0F172A] text-white font-bold text-xs rounded-xl">Publish Slide</button>
+            </form>
+            <div class="space-y-2.5">
+              ${state.offer_slides.map((s) => {
+                const th = OFFER_THEMES[s.theme] || OFFER_THEMES.navy;
+                return `
+                  <div class="bg-white p-3 rounded-2xl border border-slate-100 space-y-2">
+                    <div class="rounded-xl bg-gradient-to-br ${th.bg} p-3 text-white">
+                      <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold ${th.badge}">${escapeHTML(s.badge)}</span>
+                      <h4 class="font-extrabold text-sm mt-1">${escapeHTML(s.title)}</h4>
+                      <p class="text-[11px] text-white/80">${escapeHTML(s.subtitle)}</p>
+                    </div>
+                    <div class="flex justify-between text-xs px-1">
+                      <button onclick="toggleSlideActive('${s.id}')" class="font-bold ${s.is_active ? 'text-emerald-600' : 'text-slate-400'}">${s.is_active ? '● Live' : '○ Hidden'}</button>
+                      <button onclick="deleteSlide('${s.id}')" class="text-rose-600 font-bold">Delete</button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </main>
+        `;
+      } else if (state.ui.activeTab === 'home') {
+        const shareUrl = getShareableStoreUrl();
+        content = `
+          <main class="p-4 space-y-4 pb-28">
+            <!-- Shareable Store Link Card -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-xs space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">${t('shopLink')}</span>
+                ${renderCloudPill()}
+              </div>
+              <div class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+                <p class="text-xs font-mono font-bold text-slate-800 truncate">?shop=${escapeHTML(m.slug)}</p>
+                <button onclick="setMode('store')" class="text-[11px] font-bold text-blue-600 shrink-0">Open &rarr;</button>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <button onclick="copyToClipboard('${escapeHTML(shareUrl)}', 'Store link copied!')" class="py-2 bg-slate-100 text-slate-800 font-bold text-xs rounded-xl">${t('copyLink')}</button>
+                <button onclick="window.open('https://wa.me/?text='+encodeURIComponent('Order online from ${escapeHTML(m.shop_name)}: ${escapeHTML(shareUrl)}'), '_blank')" class="py-2 bg-[#25D366] text-white font-bold text-xs rounded-xl">${t('whatsapp')}</button>
+                <button onclick="openStoreQRModal()" class="py-2 bg-slate-100 text-slate-800 font-bold text-xs rounded-xl">${t('qrCode')}</button>
+              </div>
+            </div>
+
+            <!-- 3 Stat Cards -->
+            <div class="grid grid-cols-3 gap-2.5">
+              <div onclick="setTab('orders')" class="bg-white p-3 rounded-2xl border border-slate-100 cursor-pointer">
+                <span class="text-[11px] font-semibold text-slate-500">${t('totalOrders')}</span>
+                <div class="text-xl font-extrabold mt-1">${state.orders.length}</div>
+              </div>
+              <div class="bg-white p-3 rounded-2xl border border-slate-100">
+                <span class="text-[11px] font-semibold text-slate-500">${t('revenue')}</span>
+                <div class="text-lg font-extrabold mt-1 truncate">${formatINR(revenue)}</div>
+              </div>
+              <div onclick="state.ui.orderFilter='Pending'; setTab('orders');" class="bg-white p-3 rounded-2xl border border-slate-100 cursor-pointer">
+                <span class="text-[11px] font-semibold text-slate-500">${t('pending')}</span>
+                <div class="text-xl font-extrabold ${pendingCount > 0 ? 'text-amber-500' : 'text-emerald-600'} mt-1">${pendingCount}</div>
+              </div>
+            </div>
+
+            <!-- Offer Slides Card -->
+            <div onclick="state.ui.offersManagerOpen=true; renderApp();" class="bg-[#0F172A] text-white rounded-2xl p-4 flex items-center justify-between cursor-pointer">
+              <div>
+                <h3 class="text-sm font-extrabold">Offer Slides Carousel</h3>
+                <p class="text-[11px] text-slate-300">${state.offer_slides.filter((s) => s.is_active).length} active banners on storefront</p>
+              </div>
+              <span class="px-2.5 py-1 bg-amber-400 text-slate-950 text-[10px] font-extrabold rounded-lg">Manage &rarr;</span>
+            </div>
+
+            <!-- Recent Orders -->
+            <section class="space-y-2.5">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-extrabold">${t('recentOrders')}</h3>
+                <button onclick="setTab('orders')" class="text-xs font-bold text-blue-600">${t('viewAll')} &rarr;</button>
+              </div>
+              ${state.orders.slice(0, 2).map(renderOrderCard).join('') || `<p class="text-center py-6 text-xs text-slate-400 bg-white rounded-2xl">No orders yet.</p>`}
+            </section>
+          </main>
+        `;
+      } else if (state.ui.activeTab === 'orders') {
+        const filters = ['All', 'Pending', 'Confirmed', 'Packed', 'Delivered'];
+        const q = state.ui.orderSearch.trim().toLowerCase();
+        const list = state.orders.filter((o) =>
+          (state.ui.orderFilter === 'All' || o.order_status === state.ui.orderFilter) &&
+          (!q || (o.customer_name || '').toLowerCase().includes(q) || (o.order_code || '').toLowerCase().includes(q))
+        );
+        content = `
+          <main class="p-4 space-y-3 pb-28">
+            <div class="flex gap-2">
+              <input type="text" value="${escapeHTML(state.ui.orderSearch)}" oninput="state.ui.orderSearch=this.value; renderApp();" placeholder="Search customer or #ORD..." class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs" />
+              <button onclick="exportOrdersCSV()" class="px-3 py-2 bg-[#0F172A] text-white text-xs font-bold rounded-xl shrink-0">⬇️ ${t('exportCsv')}</button>
+            </div>
+            <div class="flex gap-1.5 overflow-x-auto no-scrollbar">
+              ${filters.map((f) => `<button onclick="state.ui.orderFilter='${f}'; renderApp();" class="px-3 py-1.5 rounded-full text-xs font-bold shrink-0 ${state.ui.orderFilter === f ? 'bg-[#0F172A] text-white' : 'bg-white border border-slate-200 text-slate-600'}">${f}</button>`).join('')}
+            </div>
+            <div class="space-y-3">${list.map(renderOrderCard).join('') || `<p class="text-center py-8 text-xs text-slate-400 bg-white rounded-2xl">No orders match filter.</p>`}</div>
+          </main>
+        `;
+      } else if (state.ui.activeTab === 'catalog') {
+        const q = state.ui.catalogSearch.trim().toLowerCase();
+        const list = state.products.filter((p) => !q || p.name.toLowerCase().includes(q));
+        content = `
+          <main class="p-4 space-y-3 pb-28">
+            <div class="flex gap-2">
+              <input type="text" value="${escapeHTML(state.ui.catalogSearch)}" oninput="state.ui.catalogSearch=this.value; renderApp();" placeholder="Search catalog..." class="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs" />
+              <button onclick="openBulkCsvModal()" class="px-2.5 py-2 bg-amber-100 text-amber-900 text-xs font-extrabold rounded-xl shrink-0">${t('bulkCsv')}</button>
+              <button onclick="openProductModal(null)" class="px-3 py-2 bg-[#0F172A] text-white text-xs font-bold rounded-xl shrink-0">+ Add</button>
+            </div>
+            <div class="space-y-2.5">
+              ${list.map((p) => `
+                <div class="bg-white p-3 rounded-2xl border border-slate-100 flex gap-3 items-center ${!p.in_stock ? 'opacity-60' : ''}">
+                  <img src="${escapeHTML(p.image_url)}" onerror="this.src='${FALLBACK_IMG}'" class="w-16 h-16 rounded-xl object-cover shrink-0" />
+                  <div class="flex-1 min-w-0">
+                    <h4 class="font-bold text-sm truncate">${escapeHTML(p.name)}</h4>
+                    <p class="text-xs font-extrabold text-slate-700">${formatINR(p.price)} <span class="font-normal text-slate-400">• ${escapeHTML(p.category)}</span></p>
+                    <div class="flex items-center justify-between mt-2">
+                      <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                        <input type="checkbox" ${p.in_stock ? 'checked' : ''} onchange="toggleProductStock('${p.id}')" class="sr-only peer" />
+                        <div class="w-8 h-4 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+                        <span class="text-[10px] font-bold">${p.in_stock ? 'In Stock' : 'Hidden'}</span>
+                      </label>
+                      <div class="flex gap-1.5">
+                        <button onclick="openProductModal('${p.id}')" class="px-2 py-1 bg-slate-100 rounded-lg text-[10px] font-bold">Edit</button>
+                        <button onclick="deleteProduct('${p.id}')" class="px-2 py-1 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-bold">Del</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `).join('') || `<p class="text-center py-8 text-xs text-slate-400 bg-white rounded-2xl">No products yet. Tap + Add!</p>`}
+            </div>
+          </main>
+        `;
+      } else {
+        // Settings + Coupons + Customer CRM
+        const crmMap = {};
+        state.orders.forEach((o) => {
+          const k = o.customer_phone || o.customer_name;
+          if (!crmMap[k]) crmMap[k] = { name: o.customer_name, phone: o.customer_phone, orders: 0, spent: 0 };
+          crmMap[k].orders += 1; crmMap[k].spent += Number(o.total) || 0;
+        });
+        const crmList = Object.values(crmMap).sort((a, b) => b.spent - a.spent);
+
+        content = `
+          <main class="p-4 space-y-4 pb-28">
+            <form onsubmit="saveMerchantSettings(event)" class="bg-white rounded-2xl p-4 border border-slate-100 space-y-2.5">
+              <h3 class="text-sm font-extrabold">Shop, Business Type &amp; Theme</h3>
+              <input id="set-name" type="text" required value="${escapeHTML(m.shop_name)}" placeholder="Shop Name" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold" />
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Business Category</label>
+                <select id="set-cat" onchange="onSettingsCategoryChange(this.value)" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white font-semibold">
+                  ${Object.keys(BUSINESS_TYPES).map((b) => `<option value="${escapeHTML(b)}" ${m.category === b ? 'selected' : ''}>${escapeHTML(b)}</option>`).join('')}
+                </select>
+              </div>
+              <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1.5">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Live Brand Theme</span>
+                <div class="flex items-center justify-between gap-1.5">
+                  ${Object.values(THEME_PALETTES).map((p) => `
+                    <button type="button" onclick="selectMerchantTheme('${p.id}')" title="${p.name}"
+                      class="w-8 h-8 rounded-full transition ${getActiveThemeId() === p.id ? 'ring-2 ring-offset-2 ring-slate-900 scale-105' : 'opacity-80 hover:opacity-100'}"
+                      style="background: linear-gradient(135deg, ${p.primary} 55%, ${p.accent} 45%);">
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="set-wa" type="tel" required value="${escapeHTML(m.whatsapp_number)}" placeholder="WhatsApp No." class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono" />
+                <input id="set-upi" type="text" value="${escapeHTML(m.upi_id)}" placeholder="UPI ID (shop@upi)" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono" />
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <input id="set-city" type="text" value="${escapeHTML(m.city)}" placeholder="City" class="px-2.5 py-2 rounded-xl border border-slate-200 text-xs" />
+                <input id="set-fee" type="number" value="${m.delivery_fee || 0}" placeholder="Fee ₹" class="px-2.5 py-2 rounded-xl border border-slate-200 text-xs" />
+                <input id="set-free" type="number" value="${m.free_delivery_above || 500}" placeholder="Free > ₹" class="px-2.5 py-2 rounded-xl border border-slate-200 text-xs" />
+              </div>
+              <button type="submit" class="w-full py-2.5 bg-brand-primary text-white font-bold text-xs rounded-xl">Save Settings</button>
+            </form>
+
+            <!-- Coupons -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-100 space-y-2.5">
+              <h3 class="text-sm font-extrabold">Coupon Codes</h3>
+              ${state.coupons.map((c) => `
+                <div class="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-xl text-xs">
+                  <span><strong class="font-mono">${escapeHTML(c.code)}</strong> • ${c.discount_type === 'percent' ? `${c.discount_value}%` : `₹${c.discount_value}`} OFF</span>
+                  <button onclick="deleteCoupon('${c.id}')" class="text-rose-600 font-bold">✕</button>
+                </div>
+              `).join('')}
+              <form onsubmit="addCouponForm(event)" class="grid grid-cols-12 gap-1.5">
+                <input id="cp-code" type="text" required placeholder="CODE" class="col-span-4 px-2 py-2 rounded-lg border border-slate-200 text-xs uppercase font-bold" />
+                <select id="cp-type" class="col-span-3 px-1.5 py-2 rounded-lg border border-slate-200 text-xs bg-white"><option value="percent">% Off</option><option value="flat">₹ Flat</option></select>
+                <input id="cp-val" type="number" required placeholder="Val" class="col-span-3 px-2 py-2 rounded-lg border border-slate-200 text-xs" />
+                <button type="submit" class="col-span-2 bg-[#0F172A] text-white font-bold text-xs rounded-lg">+</button>
+              </form>
+            </div>
+
+            <!-- Customer CRM -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-100 space-y-2.5">
+              <h3 class="text-sm font-extrabold">Customer CRM (${crmList.length})</h3>
+              ${crmList.map((c) => `
+                <div class="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl text-xs">
+                  <div><p class="font-bold">${escapeHTML(c.name)}</p><p class="text-[11px] text-slate-500">${c.orders} orders • ${formatINR(c.spent)}</p></div>
+                  <button onclick="window.open('https://wa.me/${(c.phone || '').replace(/\D/g, '')}', '_blank')" class="px-2.5 py-1.5 bg-[#25D366] text-white font-bold rounded-lg text-[10px]">WhatsApp</button>
+                </div>
+              `).join('') || `<p class="text-xs text-slate-400">Customers will appear here after orders.</p>`}
+            </div>
+          </main>
+        `;
+      }
+
+      return `
+        <!-- Top Bar -->
+        <header class="bg-white border-b border-slate-100 px-3.5 py-2.5 flex items-center justify-between sticky top-0 z-30">
+          <div class="min-w-0 pr-2">
+            <h1 class="text-xs font-extrabold truncate">${escapeHTML(m.shop_name)}</h1>
+            <button onclick="toggleShopOpen()" class="text-[10px] font-extrabold ${m.is_open ? 'text-emerald-600' : 'text-rose-600'}">
+              ● ${m.is_open ? t('live') : t('closed')} (Tap to toggle)
+            </button>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <div class="flex bg-slate-100 rounded-lg p-0.5 text-[10px] font-bold">
+              ${['en', 'hi', 'gu'].map((l) => `<button onclick="state.ui.lang='${l}'; renderApp();" class="px-1.5 py-0.5 rounded ${state.ui.lang === l ? 'bg-white shadow-xs' : 'text-slate-500'}">${l === 'en' ? 'EN' : l === 'hi' ? 'हिं' : 'ગુજ'}</button>`).join('')}
+            </div>
+            <button onclick="setMode('store')" class="px-2.5 py-1.5 bg-brand-primary text-white text-[10px] font-bold rounded-lg">${t('preview')}</button>
+            <button onclick="handleLogout()" class="px-2 py-1.5 bg-rose-50 text-rose-600 text-[10px] font-extrabold rounded-lg" title="Logout">⏻</button>
+          </div>
+        </header>
+
+        <!-- Trial Banner -->
+        ${m.plan_status !== 'active' ? `
+          <div class="bg-amber-50 border-b border-amber-200 px-3.5 py-2 flex items-center justify-between text-[11px]">
+            <span class="font-bold text-amber-900">⏳ ${m.plan_status === 'trial' ? `${daysLeft}d left in Free Trial` : 'Plan Expired / Paused'}</span>
+            <div class="flex gap-1.5">
+              <button onclick="updateMerchantPlan('${m.id}', 'expired', 0); openUpgradeModal();" class="px-2 py-0.5 bg-white border border-amber-300 text-amber-800 rounded font-bold text-[10px]">Test Lock</button>
+              <button onclick="openUpgradeModal()" class="px-2.5 py-0.5 bg-amber-500 text-white rounded font-extrabold text-[10px]">Upgrade</button>
+            </div>
+          </div>
+        ` : ''}
+
+        ${content}
+
+        <!-- 4 Bottom Tabs -->
+        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2 flex items-center justify-around z-40">
+          ${[
+            { id: 'home', label: t('home'), icon: '🏠' },
+            { id: 'orders', label: t('orders'), icon: '📦', badge: pendingCount },
+            { id: 'catalog', label: t('catalog'), icon: '🛍️' },
+            { id: 'settings', label: t('settings'), icon: '⚙️' },
+          ].map((tb) => `
+            <button onclick="setTab('${tb.id}')" class="flex flex-col items-center gap-0.5 px-3 py-1 relative ${state.ui.activeTab === tb.id ? 'text-[#0F172A]' : 'text-slate-400'}">
+              <span class="text-base leading-none">${tb.icon}</span>
+              <span class="text-[10px] ${state.ui.activeTab === tb.id ? 'font-extrabold' : 'font-medium'}">${tb.label}</span>
+              ${tb.badge > 0 ? `<span class="absolute -top-0.5 right-1 px-1.5 bg-emerald-500 text-white rounded-full text-[9px] font-bold">${tb.badge}</span>` : ''}
+            </button>
+          `).join('')}
+        </nav>
+      `;
+    }
+
+    function renderOrderCard(o) {
+      const isPaid = o.payment_status === 'Paid';
+      return `
+        <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-xs space-y-2.5">
+          <div class="flex justify-between items-start">
+            <div>
+              <span class="text-xs font-extrabold font-mono">${escapeHTML(o.order_code)}</span>
+              <span class="text-[10px] text-slate-400 ml-1">• ${formatRelTime(o.created_at)}</span>
+              <h4 class="text-sm font-bold mt-0.5">${escapeHTML(o.customer_name)}</h4>
+              <p class="text-[11px] text-slate-500">📞 ${escapeHTML(o.customer_phone)} • ${escapeHTML(o.delivery_slot || 'Standard')}</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+              <span class="px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-full">${escapeHTML(o.order_status)}</span>
+              <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}">${isPaid ? '✓ Paid' : 'Pending'}</span>
+            </div>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-2.5 text-xs space-y-1">
+            ${(o.items || []).map((i) => `<div class="flex justify-between"><span class="truncate pr-2">${i.qty}x ${escapeHTML(i.name)} ${i.variant ? `(${escapeHTML(i.variant)})` : ''}</span><span class="font-bold">${formatINR(i.price * i.qty)}</span></div>`).join('')}
+            <div class="border-t border-slate-200 pt-1 flex justify-between font-extrabold"><span>Total</span><span>${formatINR(o.total)}</span></div>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            ${!isPaid ? `<button onclick="updateOrderField('${o.id}', {payment_status:'Paid'})" class="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-bold">✓ Mark Paid</button>` : ''}
+            ${o.order_status === 'Pending' ? `<button onclick="updateOrderField('${o.id}', {order_status:'Confirmed'})" class="px-2.5 py-1 bg-[#0F172A] text-white rounded-lg text-[10px] font-bold">Confirm</button>` : ''}
+            ${o.order_status === 'Confirmed' ? `<button onclick="updateOrderField('${o.id}', {order_status:'Packed'})" class="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-[10px] font-bold">Pack</button>` : ''}
+            ${o.order_status === 'Packed' ? `<button onclick="updateOrderField('${o.id}', {order_status:'Delivered'})" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold">Deliver</button>` : ''}
+            <button onclick="openInvoiceModal('${o.id}')" class="px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg text-[10px] font-bold">🧾 PDF Bill</button>
+            <button onclick="sendWhatsAppOrderUpdate('${o.id}', 'delivery')" class="px-2.5 py-1 bg-[#25D366]/15 text-emerald-800 rounded-lg text-[10px] font-bold">WA Update</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function openStoreQRModal() {
+      const url = getShareableStoreUrl();
+      const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(url)}`;
+      const root = document.getElementById('modal-root');
+      root.classList.remove('hidden');
+      root.innerHTML = `
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" onclick="if(event.target===this) closeModal()">
+          <div class="bg-white rounded-3xl w-full max-w-xs p-6 text-center space-y-3 animate-fade-in">
+            <h3 class="text-base font-extrabold">${escapeHTML(state.merchant.shop_name)}</h3>
+            <img src="${qr}" alt="Store QR" class="w-48 h-48 mx-auto rounded-2xl border border-slate-200 p-2" />
+            <button onclick="closeModal()" class="w-full py-2.5 bg-[#0F172A] text-white font-bold text-xs rounded-xl">Close</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCustomerStorefront() {
+      const m = state.merchant;
+      const biz = getBusinessConfig(m.category);
+      const isLocked = !m.is_open || m.plan_status === 'expired' || m.plan_status === 'paused';
+      const productCats = state.products.filter((p) => p.in_stock).map((p) => p.category || 'General');
+      const cats = ['All', ...new Set([...productCats, ...biz.categories])];
+      const products = state.products.filter((p) => p.in_stock && (state.ui.storeCategory === 'All' || p.category === state.ui.storeCategory));
+      const slides = state.offer_slides.filter((s) => s.is_active);
+      const cart = getCartSummary();
+      const rem = Math.max(0, cart.threshold - cart.subtotal);
+      const pct = Math.min(100, Math.round((cart.subtotal / (cart.threshold || 1)) * 100));
+      const waCtaLabel = biz.isService ? 'Book on WhatsApp' : t('orderOnWa');
+
+      return `
+        <div class="min-h-screen bg-[#F8FAFC] ${cart.count > 0 ? 'pb-36' : 'pb-12'}">
+          <div class="bg-brand-primary text-white px-4 py-2 flex items-center justify-between text-[11px]">
+            <span class="font-semibold text-white/80">🛍️ ${escapeHTML(m.category || 'Storefront')} • ${state.isCloudLive ? 'Live' : 'Demo'}</span>
+            <button onclick="setMode('merchant')" class="text-brand-accent font-bold">&larr; Dashboard</button>
+          </div>
+
+          ${isLocked ? `<div class="bg-rose-600 text-white px-4 py-2.5 text-center text-xs font-bold">⛔ ${t('storePaused')}</div>` : ''}
+
+          <!-- Store Header -->
+          <header class="bg-white border-b border-slate-100 p-4 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-3 min-w-0">
+              <img src="${escapeHTML(m.logo_url)}" onerror="this.src='${FALLBACK_IMG}'" class="w-12 h-12 rounded-2xl object-cover border border-slate-100 shrink-0" />
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <h1 class="text-base font-extrabold truncate">${escapeHTML(m.shop_name)}</h1>
+                  <span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[9px] font-bold rounded-full">✓</span>
+                </div>
+                <p class="text-[11px] text-slate-500">📍 ${escapeHTML(m.city || 'India')} • Free delivery &gt; ${formatINR(m.free_delivery_above || 500)}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button onclick="openCustomerProfileModal('wishlist')" class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-sm">❤️</button>
+              <button onclick="openCustomerProfileModal('orders')" class="px-2.5 h-9 rounded-xl bg-brand-primary text-white text-[11px] font-bold">
+                👤 ${state.customerProfile.isLoggedIn ? escapeHTML(state.customerProfile.name.split(' ')[0]) : 'Profile'}
+              </button>
+            </div>
+          </header>
+
+          <!-- Offer Carousel -->
+          ${slides.length ? `
+            <section class="pt-3 pb-1">
+              <div id="offer-track" class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth">
+                ${slides.map((s) => {
+                  const th = OFFER_THEMES[s.theme] || OFFER_THEMES.navy;
+                  return `
+                    <div class="w-full shrink-0 snap-center px-4">
+                      <div class="rounded-2xl bg-gradient-to-br ${th.bg} p-4 text-white shadow-md flex items-center justify-between gap-3 min-h-[120px]">
+                        <div class="flex-1 min-w-0 space-y-1">
+                          <span class="inline-block px-2 py-0.5 rounded-full text-[9px] font-extrabold ${th.badge}">${escapeHTML(s.badge)}</span>
+                          <h2 class="text-base font-extrabold leading-tight">${escapeHTML(s.title)}</h2>
+                          <p class="text-[11px] text-white/85 line-clamp-2">${escapeHTML(s.subtitle)}</p>
+                        </div>
+                        ${s.image_url ? `<img src="${escapeHTML(s.image_url)}" class="w-18 h-18 rounded-xl object-cover shrink-0 ring-2 ring-white/20" />` : ''}
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </section>
+          ` : ''}
+
+          <!-- Category Tabs -->
+          <nav class="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar sticky top-0 bg-[#F8FAFC]/95 z-20">
+            ${cats.map((c) => `<button onclick="state.ui.storeCategory='${escapeHTML(c)}'; renderApp();" class="px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 ${state.ui.storeCategory === c ? 'bg-brand-primary text-white' : 'bg-white border border-slate-200 text-slate-700'}">${escapeHTML(c)}</button>`).join('')}
+          </nav>
+
+          <!-- Products -->
+          <main class="px-4 space-y-3">
+            ${products.map((p) => {
+              const vars = Array.isArray(p.variants) && p.variants.length ? p.variants : [{ label: 'Standard', price: p.price, mrp: p.mrp }];
+              const vIdx = state.selectedVariants[p.id] || 0;
+              const v = vars[vIdx] || vars[0];
+              const qty = state.cart[`${p.id}__${vIdx}`] || 0;
+              const wished = (state.customerProfile.wishlist || []).includes(p.id);
+              return `
+                <div class="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-xs flex gap-3 items-start">
+                  <div class="relative shrink-0">
+                    <img src="${escapeHTML(p.image_url)}" onerror="this.src='${FALLBACK_IMG}'" class="w-24 h-24 rounded-xl object-cover" />
+                    <button onclick="toggleWishlist('${p.id}')" class="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-white/90 shadow-xs flex items-center justify-center text-xs">${wished ? '❤️' : '🤍'}</button>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                      ${biz.isFood && p.dietary === 'veg' ? '<span class="w-3 h-3 border border-emerald-600 p-0.5 inline-flex items-center justify-center rounded-[2px]"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span></span>' : ''}
+                      ${biz.isFood && p.dietary === 'egg' ? '<span class="w-3 h-3 border border-amber-600 p-0.5 inline-flex items-center justify-center rounded-[2px]"><span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span></span>' : ''}
+                      ${p.is_bestseller ? '<span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">★ Best Seller</span>' : ''}
+                    </div>
+                    <h3 class="font-bold text-sm truncate mt-0.5">${escapeHTML(p.name)}</h3>
+                    <p class="text-[11px] text-slate-500 line-clamp-1">${escapeHTML(p.description)}</p>
+                    ${vars.length > 1 ? `
+                      <div class="flex flex-wrap gap-1 mt-1.5">
+                        ${vars.map((vr, idx) => `<button onclick="state.selectedVariants['${p.id}']=${idx}; renderApp();" class="px-2 py-0.5 rounded-lg text-[10px] font-bold border ${idx === vIdx ? 'bg-brand-primary text-white border-brand-primary' : 'bg-slate-50 text-slate-600 border-slate-200'}">${escapeHTML(vr.label)}</button>`).join('')}
+                      </div>
+                    ` : ''}
+                    <div class="flex items-center justify-between mt-2">
+                      <div class="flex items-baseline gap-1.5">
+                        <span class="font-extrabold text-sm">${formatINR(v.price)}</span>
+                        ${v.mrp ? `<span class="text-xs text-slate-400 line-through">${formatINR(v.mrp)}</span>` : ''}
+                      </div>
+                      ${qty > 0
+                        ? `<div class="flex items-center bg-brand-primary text-white rounded-xl px-2 py-1 gap-2.5 text-xs font-bold"><button onclick="updateCartQty('${p.id}', ${vIdx}, -1)" class="px-1">−</button><span>${qty}</span><button onclick="updateCartQty('${p.id}', ${vIdx}, 1)" class="px-1">+</button></div>`
+                        : `<button ${isLocked ? 'disabled' : ''} onclick="updateCartQty('${p.id}', ${vIdx}, 1)" class="px-3.5 py-1.5 ${isLocked ? 'bg-slate-100 text-slate-400' : 'bg-brand-soft text-brand-primary'} rounded-xl text-xs font-bold">${biz.isService ? '+ Book' : '+ Add'}</button>`
+                      }
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('') || `<p class="text-center py-10 text-xs text-slate-400">No items available in this category yet.</p>`}
+          </main>
+
+          <!-- Powered by OrderLink Footer (hidden when plan_status === 'active') -->
+          ${m.plan_status !== 'active' ? `
+            <footer class="mt-8 text-center pb-4">
+              <span class="inline-flex items-center gap-1 px-3 py-1 bg-white border border-slate-200 rounded-full text-[11px] font-bold text-slate-500">⚡ Powered by <strong class="text-slate-900">OrderLink</strong></span>
+            </footer>
+          ` : ''}
+
+          <!-- Sticky Cart Bar + Free Delivery Progress -->
+          ${cart.count > 0 && !isLocked ? `
+            <div class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-200 shadow-2xl z-30 animate-slide-up">
+              <div class="px-4 py-1.5 bg-slate-50 border-b border-slate-100">
+                <div class="flex justify-between text-[10px] font-bold mb-1">
+                  <span class="${rem === 0 ? 'text-emerald-600' : 'text-slate-600'}">${rem === 0 ? t('freeDeliveryUnlocked') : `Add ${formatINR(rem)} more for FREE Delivery`}</span>
+                  <span>${pct}%</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full ${rem === 0 ? 'bg-emerald-500' : 'bg-amber-500'} transition-all" style="width:${pct}%"></div></div>
+              </div>
+              <div class="p-3.5 flex items-center justify-between">
+                <div><p class="text-[11px] text-slate-500 font-semibold">${cart.count} ${t('itemsSelected')}</p><p class="text-lg font-extrabold leading-tight">${formatINR(cart.total)}</p></div>
+                <button onclick="openCheckoutModal()" class="px-5 py-3 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm rounded-2xl shadow-md">${waCtaLabel}</button>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function renderSuperAdmin() {
+      return `
+        <div class="min-h-screen bg-[#F8FAFC] pb-12">
+          <header class="bg-[#0F172A] text-white px-4 py-3.5 flex items-center justify-between sticky top-0 z-30">
+            <div>
+              <span class="text-[10px] font-extrabold uppercase text-amber-400">SaaS Console</span>
+              <h1 class="text-base font-extrabold">OrderLink Super Admin</h1>
+            </div>
+            <button onclick="setMode('auth')" class="px-3 py-1.5 bg-white/10 rounded-xl text-xs font-bold">Exit</button>
+          </header>
+          <main class="p-4 space-y-3">
+            <div class="flex items-center justify-between">${renderCloudPill()}<span class="text-xs font-bold text-slate-500">${state.adminMerchants.length} Shop(s)</span></div>
+            ${state.adminMerchants.map((shop) => `
+              <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-xs space-y-2.5">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <h4 class="font-extrabold text-sm">${escapeHTML(shop.shop_name)}</h4>
+                    <p class="text-[11px] text-slate-500">${escapeHTML(shop.owner_name || '')} • ${escapeHTML(shop.city || '')} • ?shop=${escapeHTML(shop.slug)}</p>
+                  </div>
+                  <span class="px-2 py-0.5 text-[10px] font-extrabold rounded-full ${shop.plan_status === 'active' ? 'bg-emerald-100 text-emerald-700' : shop.plan_status === 'trial' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-700'}">${escapeHTML((shop.plan_status || 'trial').toUpperCase())}</span>
+                </div>
+                <div class="grid grid-cols-4 gap-1.5">
+                  <button onclick="updateMerchantPlan('${shop.id}', 'active', 30)" class="py-1.5 bg-emerald-600 text-white text-[10px] font-bold rounded-lg">+30d Pro</button>
+                  <button onclick="updateMerchantPlan('${shop.id}', 'trial', 0)" class="py-1.5 bg-amber-100 text-amber-900 text-[10px] font-bold rounded-lg">Trial</button>
+                  <button onclick="updateMerchantPlan('${shop.id}', 'paused', 0)" class="py-1.5 bg-slate-200 text-slate-800 text-[10px] font-bold rounded-lg">Pause</button>
+                  <button onclick="updateMerchantPlan('${shop.id}', 'expired', 0)" class="py-1.5 bg-rose-50 text-rose-700 text-[10px] font-bold rounded-lg">Expire</button>
+                </div>
+              </div>
+            `).join('')}
+          </main>
+        </div>
+      `;
+    }
+
+    function renderApp() {
+      stopAutoSlide();
+      const app = document.getElementById('app');
+      if (state.ui.mode === 'auth') app.innerHTML = renderAuthScreen();
+      else if (state.ui.mode === 'admin') app.innerHTML = renderSuperAdmin();
+      else if (state.ui.mode === 'store') { app.innerHTML = renderCustomerStorefront(); startAutoSlide(); }
+      else {
+        app.innerHTML = renderMerchantDashboard();
+        if ((state.merchant.plan_status === 'expired' || state.merchant.plan_status === 'paused') && document.getElementById('modal-root').classList.contains('hidden')) {
+          openUpgradeModal();
+        }
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 9. BOOTSTRAP (CHECK ?shop=<slug> OR EXISTING SUPABASE SESSION)
+     * ============================================================================
+     */
+    window.addEventListener('DOMContentLoaded', async () => {
+      applyTheme(getActiveThemeId());
+      const params = new URLSearchParams(window.location.search);
+      const shopSlug = params.get('shop');
+
+      if (shopSlug) {
+        const loaded = await loadStorefrontBySlug(shopSlug);
+        if (!loaded) showToast(`Showing demo storefront for "${shopSlug}".`, 'amber');
+        state.ui.mode = 'store';
+        renderApp();
+        return;
+      }
+
+      if (sb) {
+        try {
+          const { data } = await sb.auth.getSession();
+          if (data && data.session && data.session.user) {
+            const ok = await loadMerchantBundleFromSupabase(data.session.user.id);
+            if (ok) {
+              state.ui.mode = 'merchant';
+              renderApp();
+              return;
+            }
+          }
+        } catch (e) {}
+      }
+
+      renderApp();
+    });
+  </script>
+</body>
+</html>

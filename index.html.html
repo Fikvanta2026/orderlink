@@ -1257,10 +1257,51 @@
     }
 
     // SETTINGS, COUPONS & OFFER SLIDES
+    async function handleMerchantLogoFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById('set-logo-status');
+      const urlInput = document.getElementById('set-logo-url');
+      const previewEl = document.getElementById('set-logo-preview');
+
+      if (statusEl) { statusEl.className = 'text-[10px] font-bold text-amber-600'; statusEl.textContent = 'Compressing & uploading logo...'; }
+
+      try {
+        const { blob, dataUrl } = await compressImageFile(file, 360, 0.82);
+
+        // Immediately update preview & set compressed fallback
+        if (previewEl) previewEl.src = dataUrl;
+        if (urlInput) urlInput.value = dataUrl;
+
+        // Upload to Supabase Storage 'shop-assets' bucket when live
+        if (state.isCloudLive && sb && blob) {
+          const path = `${state.merchant.id}/logo-${Date.now()}.jpg`;
+          const { error } = await sb.storage.from('shop-assets').upload(path, blob, {
+            contentType: 'image/jpeg',
+            upsert: true,
+          });
+          if (!error) {
+            const { data } = sb.storage.from('shop-assets').getPublicUrl(path);
+            if (data && data.publicUrl) {
+              if (urlInput) urlInput.value = data.publicUrl;
+              if (previewEl) previewEl.src = data.publicUrl;
+              if (statusEl) { statusEl.className = 'text-[10px] font-bold text-emerald-600'; statusEl.textContent = '✓ Logo uploaded! Tap Save Settings.'; }
+              return;
+            }
+          }
+        }
+
+        if (statusEl) { statusEl.className = 'text-[10px] font-bold text-emerald-600'; statusEl.textContent = '✓ Logo ready! Tap Save Settings.'; }
+      } catch (err) {
+        if (statusEl) { statusEl.className = 'text-[10px] font-bold text-rose-600'; statusEl.textContent = '❌ Logo error: ' + err.message; }
+      }
+    }
+
     async function saveMerchantSettings(e) {
       e.preventDefault();
       const updates = {
         shop_name: document.getElementById('set-name').value.trim(),
+        logo_url: document.getElementById('set-logo-url').value.trim(),
         whatsapp_number: document.getElementById('set-wa').value.replace(/\D/g, ''),
         upi_id: document.getElementById('set-upi').value.trim(),
         city: document.getElementById('set-city').value.trim(),
@@ -1276,7 +1317,7 @@
       saveMerchantTheme(state.merchant.id, state.ui.selectedTheme);
       applyTheme(state.ui.selectedTheme);
       saveLocalDemo();
-      showToast('Shop settings & theme saved!', 'emerald');
+      showToast('Shop settings, logo & theme saved!', 'emerald');
       renderApp();
     }
 
@@ -1982,7 +2023,21 @@
         content = `
           <main class="p-4 space-y-4 pb-28">
             <form onsubmit="saveMerchantSettings(event)" class="bg-white rounded-2xl p-4 border border-slate-100 space-y-2.5">
-              <h3 class="text-sm font-extrabold">Shop, Category &amp; Theme Settings</h3>
+              <h3 class="text-sm font-extrabold">Shop, Brand Logo &amp; Theme Settings</h3>
+
+              <!-- Brand Logo Upload & Live Preview -->
+              <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center gap-3">
+                <img id="set-logo-preview" src="${escapeHTML(m.logo_url || FALLBACK_IMG)}" onerror="this.src='${FALLBACK_IMG}'" class="w-16 h-16 rounded-2xl object-cover border border-slate-200 bg-white shrink-0" />
+                <div class="flex-1 min-w-0 space-y-1.5">
+                  <label class="block w-full py-2 px-3 bg-theme-primary text-white text-center text-xs font-bold rounded-xl cursor-pointer active:scale-95 transition">
+                    🖼️ Upload Brand Logo
+                    <input id="set-logo-file" type="file" accept="image/*" class="hidden" onchange="handleMerchantLogoFile(event)" />
+                  </label>
+                  <input id="set-logo-url" type="text" value="${escapeHTML(m.logo_url || '')}" oninput="document.getElementById('set-logo-preview').src = this.value.trim() || '${FALLBACK_IMG}'" placeholder="Or paste logo image URL..." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px]" />
+                  <p id="set-logo-status" class="text-[10px] font-bold text-slate-500 leading-tight"></p>
+                </div>
+              </div>
+
               <input id="set-name" type="text" required value="${escapeHTML(m.shop_name)}" placeholder="Shop Name" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs" />
               <select id="set-cat" onchange="const th=getBusinessConfig(this.value).defaultTheme; state.ui.selectedTheme=th; applyTheme(th);" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white font-semibold">
                 ${BUSINESS_CATEGORIES.map((b) => `<option value="${escapeHTML(b.name)}" ${m.category === b.name ? 'selected' : ''}>${escapeHTML(b.name)}</option>`).join('')}
@@ -2038,11 +2093,14 @@
 
       return `
         <header class="bg-white border-b border-slate-100 px-3.5 py-2.5 flex items-center justify-between sticky top-0 z-30">
-          <div class="min-w-0 pr-2">
-            <h1 class="text-xs font-extrabold truncate">${escapeHTML(m.shop_name)}</h1>
-            <button onclick="toggleShopOpen()" class="text-[10px] font-extrabold ${m.is_open ? 'text-emerald-600' : 'text-rose-600'}">
-              ● ${m.is_open ? t('live') : t('closed')} (Tap to toggle)
-            </button>
+          <div class="flex items-center gap-2.5 min-w-0 pr-2">
+            <img src="${escapeHTML(m.logo_url || FALLBACK_IMG)}" onerror="this.src='${FALLBACK_IMG}'" class="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0" />
+            <div class="min-w-0">
+              <h1 class="text-xs font-extrabold truncate">${escapeHTML(m.shop_name)}</h1>
+              <button onclick="toggleShopOpen()" class="text-[10px] font-extrabold ${m.is_open ? 'text-emerald-600' : 'text-rose-600'}">
+                ● ${m.is_open ? t('live') : t('closed')} (Tap to toggle)
+              </button>
+            </div>
           </div>
           <div class="flex items-center gap-1.5 shrink-0">
             <div class="flex bg-slate-100 rounded-lg p-0.5 text-[10px] font-bold">

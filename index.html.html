@@ -218,7 +218,47 @@
 
     /**
      * ============================================================================
-     * 3. DEMO DATA & STATE MANAGEMENT (SUPABASE LIVE + LOCALSTORAGE FALLBACK)
+     * 3. MULTI-ANGLE GALLERY & YOUTUBE VIDEO HELPERS (ZERO-MIGRATION SAFE)
+     * ============================================================================
+     */
+    function extractYouTubeId(url) {
+      if (!url || typeof url !== 'string') return null;
+      const trimmed = url.trim();
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+        /^([a-zA-Z0-9_-]{11})$/,
+      ];
+      for (const re of patterns) {
+        const m = trimmed.match(re);
+        if (m && m[1]) return m[1];
+      }
+      return null;
+    }
+
+    function getProductGallery(p) {
+      if (!p) return [FALLBACK_IMG];
+      const raw = [];
+      if (Array.isArray(p.images)) raw.push(...p.images);
+      if (Array.isArray(p.variants) && p.variants[0] && Array.isArray(p.variants[0]._gallery)) {
+        raw.push(...p.variants[0]._gallery);
+      }
+      if (p.image_url) raw.unshift(p.image_url);
+      const unique = [...new Set(raw.filter((u) => typeof u === 'string' && u.trim().length > 0))];
+      return unique.length ? unique : [FALLBACK_IMG];
+    }
+
+    function getProductYoutubeUrl(p) {
+      if (!p) return '';
+      if (p.youtube_url) return p.youtube_url;
+      if (Array.isArray(p.variants) && p.variants[0] && p.variants[0]._youtube) {
+        return p.variants[0]._youtube;
+      }
+      return '';
+    }
+
+    /**
+     * ============================================================================
+     * 4. DEMO DATA & STATE MANAGEMENT (SUPABASE LIVE + LOCALSTORAGE FALLBACK)
      * ============================================================================
      */
     function getDemoData() {
@@ -246,36 +286,57 @@
           {
             id: 'prod-1', merchant_id: 'demo-merchant-1',
             name: 'Dutch Truffle Cake', category: 'Cakes & Bakes',
-            description: 'Moist Belgian dark chocolate sponge with silky ganache.',
+            description: 'Moist Belgian dark chocolate sponge layered with silky 54% dark chocolate ganache.\n• 100% Eggless & baked fresh on order\n• Includes complimentary birthday topper & knife\n• Best served chilled within 48 hours',
             price: 650, mrp: 750,
-            image_url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=400&q=80',
+            image_url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=500&q=80',
             dietary: 'veg', in_stock: true, is_bestseller: true,
-            variants: [{ label: '500g', price: 650, mrp: 750 }, { label: '1kg', price: 1200, mrp: 1400 }],
+            variants: [
+              {
+                label: '500g', price: 650, mrp: 750,
+                _gallery: [
+                  'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=500&q=80',
+                  'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=500&q=80',
+                  'https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?auto=format&fit=crop&w=500&q=80',
+                ],
+                _youtube: 'https://www.youtube.com/watch?v=dsJtgmN_98Y',
+              },
+              { label: '1kg', price: 1200, mrp: 1400 },
+            ],
           },
           {
             id: 'prod-2', merchant_id: 'demo-merchant-1',
             name: 'Artisanal Celebration Hamper', category: 'Gift Hampers',
-            description: 'Festive box with butter cookies, brass diya & scented soy candle.',
+            description: 'Curated luxury festive gift box packed with artisanal butter cookies, handcrafted brass diya, scented soy candle, and custom greeting card.\n• Premium magnetic-flap keepsake box\n• Bulk corporate branding available',
             price: 1850, mrp: 2200,
-            image_url: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=400&q=80',
+            image_url: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=500&q=80',
             dietary: 'veg', in_stock: true, is_bestseller: true,
-            variants: [{ label: 'Standard Box', price: 1850, mrp: 2200 }, { label: 'Royal Box', price: 2950, mrp: 3500 }],
+            variants: [
+              {
+                label: 'Standard Box', price: 1850, mrp: 2200,
+                _gallery: [
+                  'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=500&q=80',
+                  'https://images.unsplash.com/photo-1513885535751-8b9238bd345a?auto=format&fit=crop&w=500&q=80',
+                ],
+                _youtube: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+              },
+              { label: 'Royal Box', price: 2950, mrp: 3500 },
+            ],
           },
           {
             id: 'prod-3', merchant_id: 'demo-merchant-1',
             name: 'Belgian Fudge Brownies', category: 'Cakes & Bakes',
-            description: 'Crinkly-top dark chocolate walnut brownies baked fresh.',
+            description: 'Crinkly-top dark chocolate walnut brownies baked fresh every morning. Gooey center with rich cocoa aroma.',
             price: 550, mrp: 600,
-            image_url: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=400&q=80',
+            image_url: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=500&q=80',
             dietary: 'veg', in_stock: true, is_bestseller: false,
             variants: [{ label: 'Box of 6', price: 550, mrp: 600 }, { label: 'Box of 12', price: 1050, mrp: 1200 }],
           },
           {
             id: 'prod-4', merchant_id: 'demo-merchant-1',
             name: 'Lotus Biscoff Cheesecake Jar', category: 'Best Sellers',
-            description: 'Creamy no-bake cheesecake layered with caramelized Biscoff.',
+            description: 'Creamy no-bake cheesecake layered with caramelized Biscoff spread and crunchy biscuit crumble.',
             price: 380, mrp: 420,
-            image_url: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&w=400&q=80',
+            image_url: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?auto=format&fit=crop&w=500&q=80',
             dietary: 'veg', in_stock: true, is_bestseller: true,
             variants: [{ label: 'Single Jar', price: 380, mrp: 420 }, { label: 'Pack of 2', price: 720, mrp: 840 }],
           },
@@ -393,6 +454,12 @@
         storeCategory: 'All',
         activeSlideIndex: 0,
         offersManagerOpen: false,
+        // Multi-angle & Product Detail Page & Inline Video UI State
+        activeProductId: null,
+        activeGalleryIdx: 0,
+        pdpShowVideo: false,
+        playingVideoProdId: null,
+        modalImages: [],
       },
     };
 
@@ -400,7 +467,7 @@
 
     /**
      * ============================================================================
-     * 4. UTILITY HELPERS & IMAGE COMPRESSOR
+     * 5. UTILITY HELPERS & IMAGE COMPRESSOR
      * ============================================================================
      */
     function formatINR(n) {
@@ -429,12 +496,14 @@
       return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
     }
 
-    function getShareableStoreUrl() {
+    function getShareableStoreUrl(productId = null) {
       const base = window.location.origin !== 'null' && window.location.origin.startsWith('http')
         ? `${window.location.origin}${window.location.pathname}`
         : 'https://orderlink.app/';
       const slug = (state.merchant && state.merchant.slug) || 'aanya-gifts';
-      return `${base}?shop=${encodeURIComponent(slug)}`;
+      return productId
+        ? `${base}?shop=${encodeURIComponent(slug)}&product=${encodeURIComponent(productId)}`
+        : `${base}?shop=${encodeURIComponent(slug)}`;
     }
 
     function showToast(message, variant = 'navy') {
@@ -484,6 +553,8 @@
       state.ui.mode = mode;
       state.ui.offersManagerOpen = false;
       state.ui.activeSlideIndex = 0;
+      state.ui.activeProductId = null;
+      state.ui.playingVideoProdId = null;
       window.scrollTo({ top: 0, behavior: 'smooth' });
       renderApp();
     }
@@ -492,6 +563,29 @@
       state.ui.activeTab = tab;
       state.ui.offersManagerOpen = false;
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      renderApp();
+    }
+
+    function openProductDetail(prodId) {
+      state.ui.activeProductId = prodId;
+      state.ui.activeGalleryIdx = 0;
+      state.ui.pdpShowVideo = false;
+      state.ui.playingVideoProdId = null;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      renderApp();
+    }
+
+    function closeProductDetail() {
+      state.ui.activeProductId = null;
+      state.ui.activeGalleryIdx = 0;
+      state.ui.pdpShowVideo = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      renderApp();
+    }
+
+    function toggleCatalogInlineVideo(prodId, event) {
+      if (event) event.stopPropagation();
+      state.ui.playingVideoProdId = state.ui.playingVideoProdId === prodId ? null : prodId;
       renderApp();
     }
 
@@ -535,7 +629,7 @@
 
     /**
      * ============================================================================
-     * 5. SUPABASE DATA LOADERS & AUTH FLOWS
+     * 6. SUPABASE DATA LOADERS & AUTH FLOWS
      * ============================================================================
      */
     async function loadMerchantBundleFromSupabase(merchantId, userEmail = '') {
@@ -790,7 +884,7 @@
 
     /**
      * ============================================================================
-     * 6. MERCHANT ACTIONS (SYNCED TO SUPABASE OR LOCALSTORAGE)
+     * 7. MERCHANT ACTIONS (SYNCED TO SUPABASE OR LOCALSTORAGE)
      * ============================================================================
      */
     async function toggleShopOpen() {
@@ -972,38 +1066,112 @@
       showToast('Orders CSV exported!', 'emerald');
     }
 
-    // CATALOG: Add/Edit Product + Live Preview + Compressed Photo Upload
+    // CATALOG: Add/Edit Product + Multi-Angle Gallery + YouTube Video Link
+    function renderModalGalleryGrid() {
+      const el = document.getElementById('pm-gallery-grid');
+      if (!el) return;
+      const imgs = state.ui.modalImages || [];
+      if (!imgs.length) {
+        el.innerHTML = `<p class="text-[11px] text-slate-400 text-center py-3 col-span-4">No photos added yet. Upload multiple angles below.</p>`;
+        return;
+      }
+      el.innerHTML = imgs.map((url, idx) => `
+        <div class="relative group rounded-xl overflow-hidden border-2 ${idx === 0 ? 'border-amber-500' : 'border-slate-200'} bg-white aspect-square">
+          <img src="${escapeHTML(url)}" onerror="this.src='${FALLBACK_IMG}'" class="w-full h-full object-cover" />
+          ${idx === 0
+            ? `<span class="absolute bottom-0 inset-x-0 bg-amber-500 text-white text-[8px] font-extrabold text-center py-0.5">COVER</span>`
+            : `<button type="button" onclick="setModalCoverImage(${idx})" title="Set as Cover" class="absolute bottom-1 left-1 px-1 py-0.5 bg-slate-900/80 text-white text-[8px] font-bold rounded">★ Cover</button>`
+          }
+          <button type="button" onclick="removeModalImage(${idx})" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center shadow">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function setModalCoverImage(idx) {
+      if (!state.ui.modalImages[idx]) return;
+      const [picked] = state.ui.modalImages.splice(idx, 1);
+      state.ui.modalImages.unshift(picked);
+      renderModalGalleryGrid();
+    }
+
+    function removeModalImage(idx) {
+      state.ui.modalImages.splice(idx, 1);
+      renderModalGalleryGrid();
+    }
+
+    function addModalImageUrl() {
+      const inp = document.getElementById('pm-img-url-add');
+      const val = (inp && inp.value.trim()) || '';
+      if (!val) return;
+      if (state.ui.modalImages.length >= 6) {
+        showToast('Maximum 6 angle photos allowed per product.', 'amber');
+        return;
+      }
+      state.ui.modalImages.push(val);
+      inp.value = '';
+      renderModalGalleryGrid();
+    }
+
+    function updateYouTubeHint(val) {
+      const hint = document.getElementById('pm-yt-hint');
+      if (!hint) return;
+      if (!val || !val.trim()) {
+        hint.textContent = 'Paste any YouTube Watch, Shorts, or Share link.';
+        hint.className = 'text-[10px] text-slate-400';
+        return;
+      }
+      const ytId = extractYouTubeId(val);
+      if (ytId) {
+        hint.textContent = `✓ Valid YouTube Video detected (ID: ${ytId}) — will play inline!`;
+        hint.className = 'text-[10px] font-bold text-emerald-600';
+      } else {
+        hint.textContent = '⚠️ Invalid YouTube link. Use youtube.com/watch?v=... or youtu.be/...';
+        hint.className = 'text-[10px] font-bold text-rose-600';
+      }
+    }
+
     function openProductModal(prodId = null) {
       const editing = prodId ? state.products.find((p) => p.id === prodId) : null;
       const biz = getBusinessConfig(state.merchant.category);
       const subCats = [...new Set([...biz.subCats, 'General'])];
       const variants = editing && Array.isArray(editing.variants) && editing.variants.length
         ? editing.variants : [{ label: 'Standard', price: editing ? editing.price : 499, mrp: editing ? editing.mrp : '' }];
-      const currentImg = (editing && editing.image_url) ? editing.image_url : FALLBACK_IMG;
+
+      state.ui.modalImages = editing ? getProductGallery(editing).filter((u) => u !== FALLBACK_IMG) : [];
+      const currentYt = editing ? getProductYoutubeUrl(editing) : '';
 
       const root = document.getElementById('modal-root');
       root.classList.remove('hidden');
       root.innerHTML = `
         <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center" onclick="if(event.target===this) closeModal()">
-          <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 max-h-[90vh] overflow-y-auto animate-slide-up space-y-3.5">
+          <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 max-h-[92vh] overflow-y-auto animate-slide-up space-y-3.5">
             <div class="flex items-center justify-between">
               <h3 class="text-base font-extrabold text-slate-900">${editing ? 'Edit Item' : (biz.isService ? 'Add New Service' : 'Add New Product')}</h3>
               <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold text-sm">✕</button>
             </div>
             <form onsubmit="saveProductForm(event, '${prodId || ''}')" class="space-y-3">
-              <!-- Live Image Preview & Upload Box -->
-              <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center gap-3">
-                <img id="pm-img-preview" src="${escapeHTML(currentImg)}" onerror="this.src='${FALLBACK_IMG}'" class="w-20 h-20 rounded-xl object-cover border border-slate-200 bg-white shrink-0" />
-                <div class="flex-1 min-w-0 space-y-2">
-                  <div class="flex gap-1.5">
-                    <label class="flex-1 py-2 px-3 bg-brand-primary text-white text-center text-xs font-bold rounded-xl cursor-pointer active:scale-95 transition">
-                      📷 Choose / Upload Photo
-                      <input id="pm-img-file" type="file" accept="image/*" class="hidden" onchange="handleProductImageFile(event)" />
-                    </label>
-                  </div>
-                  <input id="pm-img-url" type="text" value="${editing ? escapeHTML(editing.image_url) : ''}" oninput="document.getElementById('pm-img-preview').src = this.value.trim() || '${FALLBACK_IMG}'" placeholder="Or paste image URL..." class="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px]" />
-                  <p id="pm-upload-status" class="text-[10px] font-bold text-slate-500 leading-tight"></p>
+              <!-- Multi-Angle Image Uploader -->
+              <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-extrabold text-slate-800">📸 Product Photos (Up to 6 Angles)</span>
+                  <label class="px-2.5 py-1.5 bg-brand-primary text-white text-[11px] font-bold rounded-xl cursor-pointer active:scale-95 transition">
+                    + Upload Photos
+                    <input id="pm-img-file" type="file" accept="image/*" multiple class="hidden" onchange="handleProductImageFiles(event)" />
+                  </label>
                 </div>
+                <div id="pm-gallery-grid" class="grid grid-cols-4 gap-2"></div>
+                <div class="flex gap-1.5">
+                  <input id="pm-img-url-add" type="text" placeholder="Or paste photo URL..." class="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px]" />
+                  <button type="button" onclick="addModalImageUrl()" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 text-[11px] font-bold rounded-lg">+ URL</button>
+                </div>
+                <p id="pm-upload-status" class="text-[10px] font-bold text-slate-500 leading-tight"></p>
+              </div>
+
+              <!-- YouTube Review / Demo Video Link -->
+              <div class="bg-rose-50/60 p-3 rounded-2xl border border-rose-200/80 space-y-1.5">
+                <label class="block text-xs font-extrabold text-rose-900">▶️ YouTube Review / Demo Video (Optional)</label>
+                <input id="pm-yt-url" type="text" value="${escapeHTML(currentYt)}" oninput="updateYouTubeHint(this.value)" placeholder="https://youtu.be/... or youtube.com/watch?v=..." class="w-full px-3 py-2 rounded-xl border border-rose-200 bg-white text-xs" />
+                <p id="pm-yt-hint" class="text-[10px] text-slate-500">Plays inline right on the Catalogue page &amp; Product page.</p>
               </div>
 
               <div>
@@ -1041,8 +1209,8 @@
               </div>
 
               <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Description</label>
-                <textarea id="pm-desc" rows="2" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs resize-none">${editing ? escapeHTML(editing.description) : ''}</textarea>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Full Product Description &amp; Specs</label>
+                <textarea id="pm-desc" rows="3" placeholder="Write features, dimensions, warranty, ingredients..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs resize-none">${editing ? escapeHTML(editing.description) : ''}</textarea>
               </div>
               <button id="pm-save-btn" type="submit" class="w-full py-3 bg-brand-primary text-white font-bold text-sm rounded-2xl shadow-md">
                 ${editing ? 'Update Item' : 'Save & Publish'}
@@ -1051,6 +1219,8 @@
           </div>
         </div>
       `;
+      renderModalGalleryGrid();
+      if (currentYt) updateYouTubeHint(currentYt);
     }
 
     function renderVarRow(label = '', price = '', mrp = '') {
@@ -1064,51 +1234,52 @@
       `;
     }
 
-    async function handleProductImageFile(event) {
-      const file = event.target.files && event.target.files[0];
-      if (!file) return;
+    async function handleProductImageFiles(event) {
+      const files = Array.from((event.target && event.target.files) || []);
+      if (!files.length) return;
       const statusEl = document.getElementById('pm-upload-status');
-      const urlInput = document.getElementById('pm-img-url');
-      const previewEl = document.getElementById('pm-img-preview');
       const saveBtn = document.getElementById('pm-save-btn');
+      const remainingSlots = Math.max(0, 6 - state.ui.modalImages.length);
+      const toProcess = files.slice(0, remainingSlots);
 
-      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Processing photo...'; }
-      if (statusEl) { statusEl.className = 'text-[10px] font-bold text-amber-600'; statusEl.textContent = 'Compressing & uploading photo...'; }
+      if (!toProcess.length) {
+        showToast('Maximum 6 angle photos reached.', 'amber');
+        return;
+      }
 
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Uploading photos...'; }
+      if (statusEl) { statusEl.className = 'text-[10px] font-bold text-amber-600'; statusEl.textContent = `Processing ${toProcess.length} photo(s)...`; }
+
+      let uploadedCount = 0;
       try {
-        const { blob, dataUrl } = await compressImageFile(file, 720, 0.78);
+        for (let i = 0; i < toProcess.length; i++) {
+          const file = toProcess[i];
+          const { blob, dataUrl } = await compressImageFile(file, 720, 0.76);
+          let finalUrl = dataUrl;
 
-        // Immediately show preview & set compressed dataUrl as guaranteed fallback
-        if (previewEl) previewEl.src = dataUrl;
-        if (urlInput) urlInput.value = dataUrl;
-
-        // Attempt upload to Supabase Storage bucket 'shop-assets'
-        if (state.isCloudLive && sb && blob) {
-          const path = `${state.merchant.id}/${Date.now()}.jpg`;
-          const { error } = await sb.storage.from('shop-assets').upload(path, blob, {
-            contentType: 'image/jpeg',
-            upsert: true,
-          });
-          if (!error) {
-            const { data } = sb.storage.from('shop-assets').getPublicUrl(path);
-            if (data && data.publicUrl) {
-              if (urlInput) urlInput.value = data.publicUrl;
-              if (previewEl) previewEl.src = data.publicUrl;
-              if (statusEl) { statusEl.className = 'text-[10px] font-bold text-emerald-600'; statusEl.textContent = '✓ Photo uploaded to cloud storage!'; }
-              return;
+          if (state.isCloudLive && sb && blob) {
+            const path = `${state.merchant.id}/${Date.now()}-${i}.jpg`;
+            const { error } = await sb.storage.from('shop-assets').upload(path, blob, {
+              contentType: 'image/jpeg',
+              upsert: true,
+            });
+            if (!error) {
+              const { data } = sb.storage.from('shop-assets').getPublicUrl(path);
+              if (data && data.publicUrl) finalUrl = data.publicUrl;
             }
-          } else {
-            console.warn('Storage bucket upload fallback:', error.message);
           }
+          state.ui.modalImages.push(finalUrl);
+          uploadedCount++;
+          renderModalGalleryGrid();
         }
-
         if (statusEl) {
           statusEl.className = 'text-[10px] font-bold text-emerald-600';
-          statusEl.textContent = '✓ Photo ready! Tap Save / Update Item.';
+          statusEl.textContent = `✓ ${uploadedCount} angle photo(s) ready! Tap Save / Update Item.`;
         }
       } catch (err) {
-        if (statusEl) { statusEl.className = 'text-[10px] font-bold text-rose-600'; statusEl.textContent = '❌ Could not load image: ' + err.message; }
+        if (statusEl) { statusEl.className = 'text-[10px] font-bold text-rose-600'; statusEl.textContent = '❌ Upload error: ' + err.message; }
       } finally {
+        event.target.value = '';
         if (saveBtn) {
           saveBtn.disabled = false;
           saveBtn.textContent = document.querySelector('#modal-root h3')?.textContent.includes('Edit') ? 'Update Item' : 'Save & Publish';
@@ -1121,9 +1292,12 @@
       const name = document.getElementById('pm-name').value.trim();
       const category = document.getElementById('pm-cat').value;
       const dietary = document.getElementById('pm-diet').value;
-      const image_url = document.getElementById('pm-img-url').value.trim() || FALLBACK_IMG;
+      const ytRaw = (document.getElementById('pm-yt-url')?.value || '').trim();
       const description = document.getElementById('pm-desc').value.trim();
       const saveBtn = document.getElementById('pm-save-btn');
+
+      const gallery = (state.ui.modalImages || []).filter((u) => u && u.trim());
+      const image_url = gallery[0] || FALLBACK_IMG;
 
       const variants = [];
       document.querySelectorAll('.pm-var-row').forEach((r) => {
@@ -1133,6 +1307,10 @@
         if (price > 0) variants.push({ label, price, mrp: mrp && mrp > price ? mrp : null });
       });
       if (!name || !variants.length) return;
+
+      // Persist multi-angle gallery & YouTube link inside variants[0] JSONB (zero-migration Supabase compatible)
+      variants[0]._gallery = gallery.length ? gallery : [image_url];
+      variants[0]._youtube = ytRaw;
 
       if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
 
@@ -1256,7 +1434,7 @@
       reader.readAsText(file);
     }
 
-    // SETTINGS, COUPONS & OFFER SLIDES
+    // SETTINGS, LOGO, COUPONS & OFFER SLIDES
     async function handleMerchantLogoFile(event) {
       const file = event.target.files && event.target.files[0];
       if (!file) return;
@@ -1269,11 +1447,9 @@
       try {
         const { blob, dataUrl } = await compressImageFile(file, 360, 0.82);
 
-        // Immediately update preview & set compressed fallback
         if (previewEl) previewEl.src = dataUrl;
         if (urlInput) urlInput.value = dataUrl;
 
-        // Upload to Supabase Storage 'shop-assets' bucket when live
         if (state.isCloudLive && sb && blob) {
           const path = `${state.merchant.id}/logo-${Date.now()}.jpg`;
           const { error } = await sb.storage.from('shop-assets').upload(path, blob, {
@@ -1394,7 +1570,7 @@
 
     /**
      * ============================================================================
-     * 7. CUSTOMER STOREFRONT, CART, PROFILE & WHATSAPP CHECKOUT
+     * 8. CUSTOMER STOREFRONT, CART, PROFILE & WHATSAPP CHECKOUT
      * ============================================================================
      */
     function stopAutoSlide() {
@@ -1404,7 +1580,7 @@
     function startAutoSlide() {
       stopAutoSlide();
       const active = state.offer_slides.filter((s) => s.is_active);
-      if (state.ui.mode !== 'store' || active.length <= 1) return;
+      if (state.ui.mode !== 'store' || state.ui.activeProductId || active.length <= 1) return;
       slideTimer = setInterval(() => {
         const track = document.getElementById('offer-track');
         if (!track) return;
@@ -1414,7 +1590,8 @@
       }, 3800);
     }
 
-    function updateCartQty(prodId, varIdx, delta) {
+    function updateCartQty(prodId, varIdx, delta, event = null) {
+      if (event) event.stopPropagation();
       const m = state.merchant;
       if (!m.is_open || m.plan_status === 'expired' || m.plan_status === 'paused') {
         showToast('Ordering is currently paused by this store.', 'amber');
@@ -1594,7 +1771,8 @@
     }
 
     // CUSTOMER PROFILE (QUICK MOBILE LOGIN + SUPABASE SYNC)
-    async function toggleWishlist(prodId) {
+    async function toggleWishlist(prodId, event = null) {
+      if (event) event.stopPropagation();
       const list = state.customerProfile.wishlist || [];
       const idx = list.indexOf(prodId);
       if (idx === -1) { list.push(prodId); showToast('Added to Wishlist ❤️', 'emerald'); }
@@ -1789,7 +1967,7 @@
 
     /**
      * ============================================================================
-     * 8. UI RENDERERS
+     * 9. UI RENDERERS
      * ============================================================================
      */
     function renderAuthScreen() {
@@ -1988,26 +2166,34 @@
               <button onclick="openProductModal(null)" class="px-3 py-2 bg-[#0F172A] text-white text-xs font-bold rounded-xl shrink-0">+ Add</button>
             </div>
             <div class="space-y-2.5">
-              ${list.map((p) => `
-                <div class="bg-white p-3 rounded-2xl border border-slate-100 flex gap-3 items-center ${!p.in_stock ? 'opacity-60' : ''}">
-                  <img src="${escapeHTML(p.image_url)}" onerror="this.src='${FALLBACK_IMG}'" class="w-16 h-16 rounded-xl object-cover shrink-0" />
-                  <div class="flex-1 min-w-0">
-                    <h4 class="font-bold text-sm truncate">${escapeHTML(p.name)}</h4>
-                    <p class="text-xs font-extrabold text-slate-700">${formatINR(p.price)} <span class="font-normal text-slate-400">• ${escapeHTML(p.category)}</span></p>
-                    <div class="flex items-center justify-between mt-2">
-                      <label class="inline-flex items-center gap-1.5 cursor-pointer">
-                        <input type="checkbox" ${p.in_stock ? 'checked' : ''} onchange="toggleProductStock('${p.id}')" class="sr-only peer" />
-                        <div class="w-8 h-4 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
-                        <span class="text-[10px] font-bold">${p.in_stock ? 'In Stock' : 'Hidden'}</span>
-                      </label>
-                      <div class="flex gap-1.5">
-                        <button onclick="openProductModal('${p.id}')" class="px-2 py-1 bg-slate-100 rounded-lg text-[10px] font-bold">Edit</button>
-                        <button onclick="deleteProduct('${p.id}')" class="px-2 py-1 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-bold">Del</button>
+              ${list.map((p) => {
+                const galCount = getProductGallery(p).length;
+                const hasYt = !!extractYouTubeId(getProductYoutubeUrl(p));
+                return `
+                  <div class="bg-white p-3 rounded-2xl border border-slate-100 flex gap-3 items-center ${!p.in_stock ? 'opacity-60' : ''}">
+                    <div class="relative shrink-0">
+                      <img src="${escapeHTML(p.image_url)}" onerror="this.src='${FALLBACK_IMG}'" class="w-16 h-16 rounded-xl object-cover" />
+                      ${galCount > 1 ? `<span class="absolute bottom-1 left-1 px-1 py-0.5 bg-slate-900/80 text-white text-[8px] font-bold rounded">📷 ${galCount}</span>` : ''}
+                      ${hasYt ? `<span class="absolute top-1 right-1 px-1 py-0.5 bg-rose-600 text-white text-[8px] font-bold rounded">▶</span>` : ''}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <h4 class="font-bold text-sm truncate">${escapeHTML(p.name)}</h4>
+                      <p class="text-xs font-extrabold text-slate-700">${formatINR(p.price)} <span class="font-normal text-slate-400">• ${escapeHTML(p.category)}</span></p>
+                      <div class="flex items-center justify-between mt-2">
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" ${p.in_stock ? 'checked' : ''} onchange="toggleProductStock('${p.id}')" class="sr-only peer" />
+                          <div class="w-8 h-4 bg-slate-200 rounded-full peer peer-checked:bg-emerald-500 relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+                          <span class="text-[10px] font-bold">${p.in_stock ? 'In Stock' : 'Hidden'}</span>
+                        </label>
+                        <div class="flex gap-1.5">
+                          <button onclick="openProductModal('${p.id}')" class="px-2 py-1 bg-slate-100 rounded-lg text-[10px] font-bold">Edit</button>
+                          <button onclick="deleteProduct('${p.id}')" class="px-2 py-1 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-bold">Del</button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              `).join('') || `<p class="text-center py-8 text-xs text-slate-400 bg-white rounded-2xl">No products yet. Tap + Add!</p>`}
+                `;
+              }).join('') || `<p class="text-center py-8 text-xs text-slate-400 bg-white rounded-2xl">No products yet. Tap + Add!</p>`}
             </div>
           </main>
         `;
@@ -2188,7 +2374,220 @@
       `;
     }
 
+    /**
+     * ============================================================================
+     * 10. AMAZON-STYLE SINGLE PRODUCT DETAIL PAGE (PDP)
+     * ============================================================================
+     */
+    function renderProductDetailPage() {
+      const m = state.merchant;
+      const p = state.products.find((x) => x.id === state.ui.activeProductId);
+      if (!p) {
+        state.ui.activeProductId = null;
+        return renderCustomerStorefront();
+      }
+
+      const biz = getBusinessConfig(m.category);
+      const isLocked = !m.is_open || m.plan_status === 'expired' || m.plan_status === 'paused';
+      const gallery = getProductGallery(p);
+      const activeIdx = Math.min(state.ui.activeGalleryIdx || 0, gallery.length - 1);
+      const ytId = extractYouTubeId(getProductYoutubeUrl(p));
+      const showVideo = state.ui.pdpShowVideo && !!ytId;
+
+      const vars = Array.isArray(p.variants) && p.variants.length ? p.variants : [{ label: 'Standard', price: p.price, mrp: p.mrp }];
+      const vIdx = state.selectedVariants[p.id] || 0;
+      const v = vars[vIdx] || vars[0];
+      const qty = state.cart[`${p.id}__${vIdx}`] || 0;
+      const wished = (state.customerProfile.wishlist || []).includes(p.id);
+      const discountPct = v.mrp && v.mrp > v.price ? Math.round(((v.mrp - v.price) / v.mrp) * 100) : 0;
+      const cart = getCartSummary();
+
+      // Amazon-style Suggested Products (same category first, then other in-stock products)
+      const suggested = state.products
+        .filter((x) => x.in_stock && x.id !== p.id)
+        .sort((a, b) => {
+          const aSame = a.category === p.category ? 1 : 0;
+          const bSame = b.category === p.category ? 1 : 0;
+          return bSame - aSame;
+        })
+        .slice(0, 6);
+
+      const prodUrl = getShareableStoreUrl(p.id);
+
+      return `
+        <div class="min-h-screen bg-[#F8FAFC] pb-28 animate-fade-in">
+          <!-- Top Sticky PDP Header -->
+          <header class="bg-white/95 backdrop-blur-md border-b border-slate-100 px-3.5 py-2.5 flex items-center justify-between sticky top-0 z-30">
+            <button onclick="closeProductDetail()" class="px-2.5 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-xs font-extrabold flex items-center gap-1">
+              &larr; Back
+            </button>
+            <p class="text-xs font-extrabold truncate max-w-[160px] text-slate-800">${escapeHTML(m.shop_name)}</p>
+            <div class="flex items-center gap-1.5">
+              <button onclick="copyToClipboard('${escapeHTML(prodUrl)}', 'Product link copied!')" class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-xs" title="Share Product">🔗</button>
+              <button onclick="toggleWishlist('${p.id}')" class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-xs">${wished ? '❤️' : '🤍'}</button>
+            </div>
+          </header>
+
+          <!-- Multi-Angle Hero Gallery / Inline YouTube Video Stage -->
+          <section class="bg-white pb-3 border-b border-slate-100">
+            <div class="relative w-full aspect-[4/3] bg-slate-900 overflow-hidden">
+              ${showVideo ? `
+                <iframe
+                  class="w-full h-full"
+                  src="https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0"
+                  title="${escapeHTML(p.name)} Review Video"
+                  frameborder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowfullscreen
+                ></iframe>
+              ` : `
+                <img src="${escapeHTML(gallery[activeIdx])}" onerror="this.src='${FALLBACK_IMG}'" class="w-full h-full object-cover" />
+                ${gallery.length > 1 ? `
+                  <button onclick="state.ui.activeGalleryIdx=(${activeIdx}-1+${gallery.length})%${gallery.length}; renderApp();" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/85 shadow text-slate-900 font-extrabold text-sm flex items-center justify-center">‹</button>
+                  <button onclick="state.ui.activeGalleryIdx=(${activeIdx}+1)%${gallery.length}; renderApp();" class="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/85 shadow text-slate-900 font-extrabold text-sm flex items-center justify-center">›</button>
+                  <span class="absolute bottom-2.5 left-3 px-2 py-0.5 rounded-full bg-slate-900/75 text-white text-[10px] font-bold">${activeIdx + 1} / ${gallery.length}</span>
+                ` : ''}
+                ${ytId ? `
+                  <button onclick="state.ui.pdpShowVideo=true; renderApp();" class="absolute bottom-2.5 right-3 px-3 py-1.5 rounded-full bg-rose-600 text-white text-[11px] font-extrabold shadow-lg flex items-center gap-1">
+                    ▶ Watch Review Video
+                  </button>
+                ` : ''}
+              `}
+            </div>
+
+            <!-- Multi-Angle Thumbnail Strip + Video Tile -->
+            ${(gallery.length > 1 || ytId) ? `
+              <div class="px-4 pt-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                ${gallery.map((imgUrl, idx) => `
+                  <button onclick="state.ui.pdpShowVideo=false; state.ui.activeGalleryIdx=${idx}; renderApp();" class="w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition ${!showVideo && idx === activeIdx ? 'border-theme-primary scale-105 shadow-sm' : 'border-slate-200 opacity-75'}">
+                    <img src="${escapeHTML(imgUrl)}" onerror="this.src='${FALLBACK_IMG}'" class="w-full h-full object-cover" />
+                  </button>
+                `).join('')}
+                ${ytId ? `
+                  <button onclick="state.ui.pdpShowVideo=true; renderApp();" class="w-14 h-14 rounded-xl shrink-0 border-2 flex flex-col items-center justify-center bg-rose-600 text-white ${showVideo ? 'border-slate-900 scale-105 shadow-sm' : 'border-rose-300 opacity-90'}">
+                    <span class="text-sm leading-none">▶</span>
+                    <span class="text-[9px] font-extrabold mt-0.5">Video</span>
+                  </button>
+                ` : ''}
+              </div>
+            ` : ''}
+          </section>
+
+          <!-- Product Details & Specs -->
+          <section class="bg-white mt-2 p-4 space-y-3 border-y border-slate-100">
+            <div class="flex items-center flex-wrap gap-1.5">
+              ${biz.isFood && p.dietary === 'veg' ? '<span class="px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-bold rounded">🟢 100% Veg</span>' : ''}
+              <span class="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-full">${escapeHTML(p.category || 'General')}</span>
+              ${p.is_bestseller ? '<span class="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-extrabold rounded-full">★ Best Seller</span>' : ''}
+            </div>
+
+            <h1 class="text-lg font-extrabold text-slate-900 leading-snug">${escapeHTML(p.name)}</h1>
+
+            <div class="flex items-baseline gap-2">
+              <span class="text-2xl font-extrabold text-slate-900">${formatINR(v.price)}</span>
+              ${v.mrp ? `<span class="text-sm text-slate-400 line-through">${formatINR(v.mrp)}</span>` : ''}
+              ${discountPct > 0 ? `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-extrabold rounded-lg">${discountPct}% OFF</span>` : ''}
+            </div>
+
+            ${vars.length > 1 ? `
+              <div class="space-y-1.5 pt-1">
+                <p class="text-xs font-bold text-slate-500">Select Option / Variant:</p>
+                <div class="flex flex-wrap gap-2">
+                  ${vars.map((vr, idx) => `
+                    <button onclick="state.selectedVariants['${p.id}']=${idx}; renderApp();" class="px-3 py-1.5 rounded-xl text-xs font-bold border transition ${idx === vIdx ? 'bg-theme-primary text-white border-theme-primary shadow-xs' : 'bg-slate-50 text-slate-700 border-slate-200'}">
+                      ${escapeHTML(vr.label)} • ${formatINR(vr.price)}
+                    </button>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+
+            <div class="pt-2 border-t border-slate-100 space-y-1.5">
+              <h2 class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Product Description</h2>
+              <p class="text-xs text-slate-700 leading-relaxed whitespace-pre-line">${escapeHTML(p.description || 'Quality product supplied directly by ' + m.shop_name + '.')}</p>
+            </div>
+
+            <!-- Trust & Delivery Strip -->
+            <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 text-center">
+              <div class="bg-slate-50 rounded-xl p-2">
+                <span class="text-sm">🚚</span>
+                <p class="text-[10px] font-bold text-slate-700 mt-0.5">Free &gt; ${formatINR(m.free_delivery_above || 500)}</p>
+              </div>
+              <div class="bg-slate-50 rounded-xl p-2">
+                <span class="text-sm">💬</span>
+                <p class="text-[10px] font-bold text-slate-700 mt-0.5">WhatsApp Order</p>
+              </div>
+              <div class="bg-slate-50 rounded-xl p-2">
+                <span class="text-sm">✅</span>
+                <p class="text-[10px] font-bold text-slate-700 mt-0.5">Verified Store</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Amazon-Style Suggested Products -->
+          ${suggested.length ? `
+            <section class="p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <h2 class="text-sm font-extrabold text-slate-900">Suggested Products You May Like</h2>
+                <button onclick="closeProductDetail()" class="text-xs font-bold text-blue-600">View All &rarr;</button>
+              </div>
+              <div class="grid grid-cols-2 gap-2.5">
+                ${suggested.map((sp) => {
+                  const sVars = Array.isArray(sp.variants) && sp.variants.length ? sp.variants : [{ label: 'Standard', price: sp.price, mrp: sp.mrp }];
+                  const sv = sVars[0];
+                  const sGal = getProductGallery(sp);
+                  const sHasYt = !!extractYouTubeId(getProductYoutubeUrl(sp));
+                  return `
+                    <div onclick="openProductDetail('${sp.id}')" class="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden cursor-pointer flex flex-col">
+                      <div class="relative aspect-square bg-slate-100">
+                        <img src="${escapeHTML(sGal[0])}" onerror="this.src='${FALLBACK_IMG}'" class="w-full h-full object-cover" />
+                        ${sHasYt ? `<span class="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-rose-600 text-white text-[9px] font-extrabold rounded-md">▶ Video</span>` : ''}
+                      </div>
+                      <div class="p-2.5 flex-1 flex flex-col justify-between space-y-1.5">
+                        <div>
+                          <p class="text-xs font-bold text-slate-900 line-clamp-2 leading-tight">${escapeHTML(sp.name)}</p>
+                          <div class="flex items-baseline gap-1 mt-1">
+                            <span class="text-xs font-extrabold">${formatINR(sv.price)}</span>
+                            ${sv.mrp ? `<span class="text-[10px] text-slate-400 line-through">${formatINR(sv.mrp)}</span>` : ''}
+                          </div>
+                        </div>
+                        <button ${isLocked ? 'disabled' : ''} onclick="updateCartQty('${sp.id}', 0, 1, event)" class="w-full py-1.5 rounded-xl text-[11px] font-extrabold ${isLocked ? 'bg-slate-100 text-slate-400' : 'bg-theme-soft text-theme-primary'}">
+                          ${biz.isService ? '+ Book' : '+ Add'}
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </section>
+          ` : ''}
+
+          <!-- Sticky Bottom PDP Bar -->
+          <div class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-200 p-3 shadow-2xl z-30 flex items-center gap-2.5">
+            ${qty > 0 ? `
+              <div class="flex items-center justify-between bg-theme-primary text-white rounded-2xl px-3 py-2.5 gap-3 text-sm font-extrabold">
+                <button onclick="updateCartQty('${p.id}', ${vIdx}, -1)" class="px-1.5">−</button>
+                <span>${qty}</span>
+                <button onclick="updateCartQty('${p.id}', ${vIdx}, 1)" class="px-1.5">+</button>
+              </div>
+            ` : `
+              <button ${isLocked ? 'disabled' : ''} onclick="updateCartQty('${p.id}', ${vIdx}, 1)" class="px-4 py-3 rounded-2xl text-xs font-extrabold border-2 ${isLocked ? 'border-slate-200 text-slate-400' : 'border-theme-primary text-theme-primary'}">
+                ${biz.isService ? '+ Add Service' : '+ Add to Cart'}
+              </button>
+            `}
+            <button ${isLocked ? 'disabled' : ''} onclick="if(${qty}===0){updateCartQty('${p.id}', ${vIdx}, 1);} openCheckoutModal();" class="flex-1 py-3 bg-[#25D366] hover:bg-[#20bd5a] text-white font-extrabold text-xs rounded-2xl shadow-md">
+              ${cart.count > 0 ? `${t('orderOnWa')} (${cart.count} • ${formatINR(cart.total)})` : `${biz.isService ? 'Book Now' : 'Buy Now'} • ${formatINR(v.price)}`}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
     function renderCustomerStorefront() {
+      if (state.ui.activeProductId) {
+        return renderProductDetailPage();
+      }
+
       const m = state.merchant;
       const biz = getBusinessConfig(m.category);
       const ctaOrderLabel = biz.isService ? 'Book on WhatsApp' : t('orderOnWa');
@@ -2262,35 +2661,73 @@
               const v = vars[vIdx] || vars[0];
               const qty = state.cart[`${p.id}__${vIdx}`] || 0;
               const wished = (state.customerProfile.wishlist || []).includes(p.id);
+              const gallery = getProductGallery(p);
+              const ytId = extractYouTubeId(getProductYoutubeUrl(p));
+              const isVideoOpen = state.ui.playingVideoProdId === p.id && !!ytId;
+
               return `
-                <div class="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-xs flex gap-3 items-start">
-                  <div class="relative shrink-0">
-                    <img src="${escapeHTML(p.image_url)}" onerror="this.src='${FALLBACK_IMG}'" class="w-24 h-24 rounded-xl object-cover" />
-                    <button onclick="toggleWishlist('${p.id}')" class="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-white/90 shadow-xs flex items-center justify-center text-xs">${wished ? '❤️' : '🤍'}</button>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5">
-                      ${biz.isFood && p.dietary === 'veg' ? '<span class="w-3 h-3 border border-emerald-600 p-0.5 inline-flex items-center justify-center rounded-[2px]"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span></span>' : ''}
-                      ${p.is_bestseller ? '<span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">★ Best Seller</span>' : ''}
+                <div class="bg-white p-3.5 rounded-2xl border border-slate-100 shadow-xs space-y-2.5">
+                  <div class="flex gap-3 items-start">
+                    <div onclick="openProductDetail('${p.id}')" class="relative shrink-0 cursor-pointer">
+                      <img src="${escapeHTML(gallery[0])}" onerror="this.src='${FALLBACK_IMG}'" class="w-24 h-24 rounded-xl object-cover" />
+                      <button onclick="toggleWishlist('${p.id}', event)" class="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-white/90 shadow-xs flex items-center justify-center text-xs">${wished ? '❤️' : '🤍'}</button>
+                      ${gallery.length > 1 ? `<span class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-slate-900/80 text-white text-[9px] font-bold">📷 ${gallery.length}</span>` : ''}
                     </div>
-                    <h3 class="font-bold text-sm truncate mt-0.5">${escapeHTML(p.name)}</h3>
-                    <p class="text-[11px] text-slate-500 line-clamp-1">${escapeHTML(p.description)}</p>
-                    ${vars.length > 1 ? `
-                      <div class="flex flex-wrap gap-1 mt-1.5">
-                        ${vars.map((vr, idx) => `<button onclick="state.selectedVariants['${p.id}']=${idx}; renderApp();" class="px-2 py-0.5 rounded-lg text-[10px] font-bold border ${idx === vIdx ? 'bg-theme-primary text-white border-theme-primary' : 'bg-slate-50 text-slate-600 border-slate-200'}">${escapeHTML(vr.label)}</button>`).join('')}
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-1.5">
+                        ${biz.isFood && p.dietary === 'veg' ? '<span class="w-3 h-3 border border-emerald-600 p-0.5 inline-flex items-center justify-center rounded-[2px]"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span></span>' : ''}
+                        ${p.is_bestseller ? '<span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">★ Best Seller</span>' : ''}
                       </div>
-                    ` : ''}
-                    <div class="flex items-center justify-between mt-2">
-                      <div class="flex items-baseline gap-1.5">
-                        <span class="font-extrabold text-sm">${formatINR(v.price)}</span>
-                        ${v.mrp ? `<span class="text-xs text-slate-400 line-through">${formatINR(v.mrp)}</span>` : ''}
+                      <h3 onclick="openProductDetail('${p.id}')" class="font-bold text-sm truncate mt-0.5 cursor-pointer hover:underline">${escapeHTML(p.name)}</h3>
+                      <p onclick="openProductDetail('${p.id}')" class="text-[11px] text-slate-500 line-clamp-1 cursor-pointer">${escapeHTML(p.description)}</p>
+
+                      <!-- Inline Video & View Details Action Pills -->
+                      <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        <button onclick="openProductDetail('${p.id}')" class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">View Details &rarr;</button>
+                        ${ytId ? `
+                          <button onclick="toggleCatalogInlineVideo('${p.id}', event)" class="px-2 py-0.5 rounded-md ${isVideoOpen ? 'bg-slate-900 text-white' : 'bg-rose-50 text-rose-700 border border-rose-200'} text-[10px] font-extrabold">
+                            ${isVideoOpen ? '✕ Close Video' : '▶ Watch Video'}
+                          </button>
+                        ` : ''}
                       </div>
-                      ${qty > 0
-                        ? `<div class="flex items-center bg-theme-primary text-white rounded-xl px-2 py-1 gap-2.5 text-xs font-bold"><button onclick="updateCartQty('${p.id}', ${vIdx}, -1)" class="px-1">−</button><span>${qty}</span><button onclick="updateCartQty('${p.id}', ${vIdx}, 1)" class="px-1">+</button></div>`
-                        : `<button ${isLocked ? 'disabled' : ''} onclick="updateCartQty('${p.id}', ${vIdx}, 1)" class="px-3.5 py-1.5 ${isLocked ? 'bg-slate-100 text-slate-400' : 'bg-theme-soft text-theme-primary'} rounded-xl text-xs font-bold">${addBtnLabel}</button>`
-                      }
+
+                      ${vars.length > 1 ? `
+                        <div class="flex flex-wrap gap-1 mt-1.5">
+                          ${vars.map((vr, idx) => `<button onclick="state.selectedVariants['${p.id}']=${idx}; renderApp();" class="px-2 py-0.5 rounded-lg text-[10px] font-bold border ${idx === vIdx ? 'bg-theme-primary text-white border-theme-primary' : 'bg-slate-50 text-slate-600 border-slate-200'}">${escapeHTML(vr.label)}</button>`).join('')}
+                        </div>
+                      ` : ''}
+                      <div class="flex items-center justify-between mt-2">
+                        <div class="flex items-baseline gap-1.5">
+                          <span class="font-extrabold text-sm">${formatINR(v.price)}</span>
+                          ${v.mrp ? `<span class="text-xs text-slate-400 line-through">${formatINR(v.mrp)}</span>` : ''}
+                        </div>
+                        ${qty > 0
+                          ? `<div class="flex items-center bg-theme-primary text-white rounded-xl px-2 py-1 gap-2.5 text-xs font-bold"><button onclick="updateCartQty('${p.id}', ${vIdx}, -1, event)" class="px-1">−</button><span>${qty}</span><button onclick="updateCartQty('${p.id}', ${vIdx}, 1, event)" class="px-1">+</button></div>`
+                          : `<button ${isLocked ? 'disabled' : ''} onclick="updateCartQty('${p.id}', ${vIdx}, 1, event)" class="px-3.5 py-1.5 ${isLocked ? 'bg-slate-100 text-slate-400' : 'bg-theme-soft text-theme-primary'} rounded-xl text-xs font-bold">${addBtnLabel}</button>`
+                        }
+                      </div>
                     </div>
                   </div>
+
+                  <!-- Inline YouTube Review Video Player right on Catalogue Page -->
+                  ${isVideoOpen ? `
+                    <div class="rounded-xl overflow-hidden bg-slate-900 border border-slate-200 animate-fade-in">
+                      <div class="flex items-center justify-between px-3 py-1.5 bg-slate-900 text-white text-[10px] font-bold">
+                        <span>▶️ Product Review Video</span>
+                        <button onclick="toggleCatalogInlineVideo('${p.id}', event)" class="text-rose-400 font-extrabold">Close ✕</button>
+                      </div>
+                      <div class="aspect-video w-full">
+                        <iframe
+                          class="w-full h-full"
+                          src="https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0"
+                          title="${escapeHTML(p.name)} Review Video"
+                          frameborder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowfullscreen
+                        ></iframe>
+                      </div>
+                    </div>
+                  ` : ''}
                 </div>
               `;
             }).join('') || `<p class="text-center py-10 text-xs text-slate-400">No items available right now.</p>`}
@@ -2371,18 +2808,22 @@
 
     /**
      * ============================================================================
-     * 9. BOOTSTRAP (CHECK ?shop=<slug> OR EXISTING SUPABASE SESSION)
+     * 11. BOOTSTRAP (CHECK ?shop=<slug>&product=<id> OR EXISTING SUPABASE SESSION)
      * ============================================================================
      */
     window.addEventListener('DOMContentLoaded', async () => {
       applyTheme(getActiveThemeId());
       const params = new URLSearchParams(window.location.search);
       const shopSlug = params.get('shop');
+      const productId = params.get('product');
 
       if (shopSlug) {
         const loaded = await loadStorefrontBySlug(shopSlug);
         if (!loaded) showToast(`Showing demo storefront for "${shopSlug}".`, 'amber');
         state.ui.mode = 'store';
+        if (productId && state.products.some((p) => p.id === productId)) {
+          state.ui.activeProductId = productId;
+        }
         renderApp();
         return;
       }
@@ -2405,4 +2846,4 @@
     });
   </script>
 </body>
-</html>
+  </html>

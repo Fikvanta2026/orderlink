@@ -42,12 +42,10 @@
       --brand-accent: #F59E0B;
       --brand-soft: #F1F5F9;
     }
-    .bg-brand-primary { background-color: var(--brand-primary) !important; }
-    .text-brand-primary { color: var(--brand-primary) !important; }
-    .border-brand-primary { border-color: var(--brand-primary) !important; }
-    .bg-brand-accent { background-color: var(--brand-accent) !important; }
-    .text-brand-accent { color: var(--brand-accent) !important; }
-    .bg-brand-soft { background-color: var(--brand-soft) !important; }
+    .bg-theme-primary, .bg-brand-primary { background-color: var(--brand-primary) !important; }
+    .text-theme-primary { color: var(--brand-primary) !important; }
+    .border-theme-primary { border-color: var(--brand-primary) !important; }
+    .bg-theme-soft { background-color: var(--brand-soft) !important; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     @keyframes slideUp {
@@ -103,100 +101,7 @@
     }
 
     const STORAGE_KEY = 'orderlink_supabase_pwa_v1';
-    const THEME_STORAGE_KEY = 'orderlink_theme_id_v1';
     const FALLBACK_IMG = 'https://placehold.co/300x300/0F172A/FFFFFF?text=OrderLink';
-
-    /**
-     * ============================================================================
-     * 1B. 12 BUSINESS CATEGORIES & 6 CURATED THEME PALETTES
-     * ============================================================================
-     */
-    const THEME_PALETTES = {
-      navy: { id: 'navy', name: 'Deep Navy & Amber', primary: '#0F172A', accent: '#F59E0B', soft: '#F1F5F9' },
-      garage: { id: 'garage', name: 'Garage Slate & Racing Red', primary: '#1E293B', accent: '#DC2626', soft: '#FEF2F2' },
-      teal: { id: 'teal', name: 'Service Teal & Emerald', primary: '#0F766E', accent: '#10B981', soft: '#F0FDFA' },
-      rose: { id: 'rose', name: 'Rose & Warm Gold', primary: '#881337', accent: '#D97706', soft: '#FFF1F2' },
-      indigo: { id: 'indigo', name: 'Royal Indigo & Violet', primary: '#312E81', accent: '#7C3AED', soft: '#EEF2FF' },
-      charcoal: { id: 'charcoal', name: 'Charcoal & Orange', primary: '#18181B', accent: '#EA580C', soft: '#FFF7ED' },
-    };
-
-    const BUSINESS_TYPES = {
-      'Auto Spare Parts & Garage': {
-        isFood: false, isService: false, defaultTheme: 'garage',
-        categories: ['Engine & Oils', 'Brakes & Clutch', 'Filters', 'Lights & Electrical', 'Tyres & Body'],
-      },
-      'Home & Repair Services': {
-        isFood: false, isService: true, defaultTheme: 'teal',
-        categories: ['AC & Appliance', 'Plumbing', 'Electrician', 'Cleaning', 'Installation'],
-      },
-      'Bakery, Cakes & Cloud Kitchen': {
-        isFood: true, isService: false, defaultTheme: 'rose',
-        categories: ['Cakes & Bakes', 'Snacks', 'Beverages', 'Combos'],
-      },
-      'Gifts, Flowers & Boutiques': {
-        isFood: false, isService: false, defaultTheme: 'rose',
-        categories: ['Gift Hampers', 'Flowers', 'Personalized', 'Festive'],
-      },
-      'Electronics & Mobile Accessories': {
-        isFood: false, isService: false, defaultTheme: 'navy',
-        categories: ['Chargers & Cables', 'Audio', 'Cases & Covers', 'Gadgets'],
-      },
-      'Grocery, Kirana & Organic Mart': {
-        isFood: true, isService: false, defaultTheme: 'teal',
-        categories: ['Staples', 'Dairy', 'Snacks', 'Household'],
-      },
-      'Clothing, Fashion & Jewellery': {
-        isFood: false, isService: false, defaultTheme: 'rose',
-        categories: ['Men', 'Women', 'Kids', 'Accessories'],
-      },
-      'Pharmacy, Medical & Wellness': {
-        isFood: false, isService: false, defaultTheme: 'teal',
-        categories: ['Medicines', 'Personal Care', 'Devices', 'Supplements'],
-      },
-      'Hardware, Paints & Tools': {
-        isFood: false, isService: false, defaultTheme: 'garage',
-        categories: ['Power Tools', 'Paints', 'Plumbing Fittings', 'Fasteners'],
-      },
-      'Salon, Beauty & Parlour': {
-        isFood: false, isService: true, defaultTheme: 'rose',
-        categories: ['Haircare', 'Skincare', 'Bridal Packages', 'Grooming'],
-      },
-      'Stationery, Books & Coaching': {
-        isFood: false, isService: false, defaultTheme: 'indigo',
-        categories: ['Notebooks', 'Art Supplies', 'Study Material', 'Office'],
-      },
-      'General Retail Store': {
-        isFood: false, isService: false, defaultTheme: 'navy',
-        categories: ['Best Sellers', 'New Arrivals', 'Combos', 'Clearance'],
-      },
-    };
-
-    function getBusinessConfig(catName) {
-      return BUSINESS_TYPES[catName] || BUSINESS_TYPES['General Retail Store'];
-    }
-
-    function applyTheme(themeId) {
-      const palette = THEME_PALETTES[themeId] || THEME_PALETTES.navy;
-      const root = document.documentElement;
-      root.style.setProperty('--brand-primary', palette.primary);
-      root.style.setProperty('--brand-accent', palette.accent);
-      root.style.setProperty('--brand-soft', palette.soft);
-      const metaTheme = document.querySelector('meta[name="theme-color"]');
-      if (metaTheme) metaTheme.setAttribute('content', palette.primary);
-      try { localStorage.setItem(THEME_STORAGE_KEY, palette.id); } catch (e) {}
-    }
-
-    function getActiveThemeId() {
-      if (state && state.merchant && state.merchant.theme_id && THEME_PALETTES[state.merchant.theme_id]) {
-        return state.merchant.theme_id;
-      }
-      try {
-        const saved = localStorage.getItem(THEME_STORAGE_KEY);
-        if (saved && THEME_PALETTES[saved]) return saved;
-      } catch (e) {}
-      const biz = getBusinessConfig(state && state.merchant && state.merchant.category);
-      return biz.defaultTheme || 'navy';
-    }
 
     /**
      * ============================================================================
@@ -251,6 +156,66 @@
       rose: { label: 'Berry Rose', bg: 'from-[#9F1239] via-[#BE123C] to-[#881337]', badge: 'bg-amber-300 text-rose-950' },
     };
 
+    const THEME_PALETTES = {
+      navy: { label: 'Deep Navy', primary: '#0F172A', accent: '#F59E0B', soft: '#F1F5F9', swatch: '#0F172A' },
+      emerald: { label: 'Royal Emerald', primary: '#065F46', accent: '#10B981', soft: '#ECFDF5', swatch: '#059669' },
+      industrial: { label: 'Industrial Slate', primary: '#1E293B', accent: '#EA580C', soft: '#FFF7ED', swatch: '#EA580C' },
+      amber: { label: 'Warm Amber', primary: '#78350F', accent: '#F59E0B', soft: '#FFFBEB', swatch: '#D97706' },
+      rose: { label: 'Crimson Rose', primary: '#881337', accent: '#F43F5E', soft: '#FFF1F2', swatch: '#E11D48' },
+      ocean: { label: 'Ocean Blue', primary: '#0C4A6E', accent: '#0284C7', soft: '#F0F9FF', swatch: '#0284C7' },
+    };
+
+    const BUSINESS_CATEGORIES = [
+      { name: 'Auto Spare Parts & Garage', defaultTheme: 'industrial', isFood: false, isService: false, subCats: ['Engine Parts', 'Lubricants & Oils', 'Brakes & Tyres', 'Accessories'] },
+      { name: 'Home & Repair Services', defaultTheme: 'ocean', isFood: false, isService: true, subCats: ['AC & Appliance', 'Plumbing', 'Electrical', 'Cleaning'] },
+      { name: 'Bakery & Cloud Kitchen', defaultTheme: 'amber', isFood: true, isService: false, subCats: ['Cakes & Bakes', 'Snacks', 'Combos', 'Best Sellers'] },
+      { name: 'Electronics & Mobile', defaultTheme: 'navy', isFood: false, isService: false, subCats: ['Mobiles', 'Chargers & Cables', 'Audio', 'Accessories'] },
+      { name: 'Clothing & Fashion', defaultTheme: 'rose', isFood: false, isService: false, subCats: ['Ethnic Wear', 'Casuals', 'Footwear', 'New Arrivals'] },
+      { name: 'Pharmacy & Healthcare', defaultTheme: 'emerald', isFood: false, isService: false, subCats: ['Medicines', 'Wellness', 'Personal Care', 'Devices'] },
+      { name: 'Hardware & Tools', defaultTheme: 'industrial', isFood: false, isService: false, subCats: ['Power Tools', 'Plumbing', 'Paints', 'Fasteners'] },
+      { name: 'Salon & Beauty', defaultTheme: 'rose', isFood: false, isService: true, subCats: ['Hair Care', 'Skin & Facial', 'Bridal Packages', 'Grooming'] },
+      { name: 'Grocery & Kirana', defaultTheme: 'emerald', isFood: true, isService: false, subCats: ['Staples', 'Dairy & Bread', 'Beverages', 'Household'] },
+      { name: 'Gift & Hampers', defaultTheme: 'navy', isFood: true, isService: false, subCats: ['Gift Hampers', 'Cakes & Bakes', 'Personalized', 'Best Sellers'] },
+      { name: 'Stationery & Books', defaultTheme: 'ocean', isFood: false, isService: false, subCats: ['Notebooks', 'Office Supplies', 'Art & Craft', 'School Kits'] },
+      { name: 'General Store', defaultTheme: 'navy', isFood: false, isService: false, subCats: ['Daily Needs', 'Best Sellers', 'Offers', 'General'] },
+    ];
+
+    function getBusinessConfig(catName) {
+      return BUSINESS_CATEGORIES.find((b) => b.name === catName) || BUSINESS_CATEGORIES[BUSINESS_CATEGORIES.length - 1];
+    }
+
+    function saveMerchantTheme(merchantId, themeKey) {
+      try {
+        if (merchantId && THEME_PALETTES[themeKey]) {
+          localStorage.setItem(`orderlink_theme_${merchantId}`, themeKey);
+        }
+      } catch (e) {}
+    }
+
+    function getMerchantTheme(merchantId, fallbackCat = 'General Store') {
+      try {
+        const saved = merchantId && localStorage.getItem(`orderlink_theme_${merchantId}`);
+        if (saved && THEME_PALETTES[saved]) return saved;
+      } catch (e) {}
+      return getBusinessConfig(fallbackCat).defaultTheme || 'navy';
+    }
+
+    function applyTheme(themeKey) {
+      const p = THEME_PALETTES[themeKey] || THEME_PALETTES.navy;
+      document.documentElement.style.setProperty('--brand-primary', p.primary);
+      document.documentElement.style.setProperty('--brand-accent', p.accent);
+      document.documentElement.style.setProperty('--brand-soft', p.soft);
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', p.primary);
+    }
+
+    function getActiveThemeId() {
+      if (state && state.merchant) {
+        return getMerchantTheme(state.merchant.id, state.merchant.category);
+      }
+      return 'navy';
+    }
+
     /**
      * ============================================================================
      * 3. DEMO DATA & STATE MANAGEMENT (SUPABASE LIVE + LOCALSTORAGE FALLBACK)
@@ -266,8 +231,8 @@
           owner_name: 'Aanya Shah',
           whatsapp_number: '919876543210',
           city: 'Ahmedabad',
-          category: 'Bakery, Cakes & Cloud Kitchen',
-          theme_id: 'rose',
+          category: 'Gift & Hampers',
+          theme_id: 'navy',
           upi_id: 'aanyagifts@okaxis',
           logo_url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=200&q=80',
           is_open: true,
@@ -418,8 +383,8 @@
       ui: {
         mode: 'auth', // 'auth' | 'merchant' | 'store' | 'admin'
         authTab: 'login', // 'login' | 'signup'
-        authAlert: null, // { type: 'amber' | 'red', title: '', message: '' }
-        signupTheme: 'navy',
+        authError: null,
+        selectedTheme: 'navy',
         activeTab: 'home', // 'home' | 'orders' | 'catalog' | 'settings'
         lang: 'en',
         orderFilter: 'All',
@@ -540,43 +505,77 @@
      * 5. SUPABASE DATA LOADERS & AUTH FLOWS
      * ============================================================================
      */
-    async function loadMerchantBundleFromSupabase(merchantId) {
-      if (!sb) return false;
+    async function loadMerchantBundleFromSupabase(merchantId, userEmail = '') {
+      if (!sb) return { ok: false, error: 'Supabase SDK not initialized.' };
       try {
-        const [mRes, pRes, oRes, cRes, sRes] = await Promise.all([
-          sb.from('merchants').select('*').eq('id', merchantId).single(),
+        const mRes = await sb.from('merchants').select('*').eq('id', merchantId).maybeSingle();
+
+        if (mRes.error) {
+          state.ui.authError = mRes.error.message || 'Failed to load merchant profile.';
+          showToast(state.ui.authError, 'red');
+          return { ok: false, error: state.ui.authError };
+        }
+
+        let merchantRow = mRes.data;
+
+        // Auto-Create Missing Merchant Profile on Login using ONLY the 7 core guaranteed columns
+        if (!merchantRow) {
+          const prefix = (userEmail ? userEmail.split('@')[0] : 'My Shop')
+            .replace(/[^a-zA-Z0-9]+/g, ' ')
+            .trim()
+            .replace(/\b\w/g, (c) => c.toUpperCase()) || 'My Shop';
+          const baseSlug = prefix.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'shop';
+          const autoProfile = {
+            id: merchantId,
+            shop_name: prefix,
+            slug: `${baseSlug}-${Math.floor(100 + Math.random() * 899)}`,
+            owner_name: 'Owner',
+            whatsapp_number: '919876543210',
+            city: 'India',
+            category: 'General Store',
+          };
+
+          const insRes = await sb.from('merchants').insert(autoProfile).select().maybeSingle();
+          if (insRes.error) {
+            state.ui.authError = insRes.error.message || 'Could not auto-create merchant profile.';
+            showToast(state.ui.authError, 'red');
+            return { ok: false, error: state.ui.authError };
+          }
+          merchantRow = insRes.data || autoProfile;
+          showToast('Profile auto-created! Update your shop details in Settings.', 'emerald');
+        }
+
+        const [pRes, oRes, cRes, sRes] = await Promise.all([
           sb.from('products').select('*').eq('merchant_id', merchantId).order('created_at', { ascending: false }),
           sb.from('orders').select('*').eq('merchant_id', merchantId).order('created_at', { ascending: false }),
           sb.from('coupons').select('*').eq('merchant_id', merchantId).order('created_at', { ascending: false }),
           sb.from('offer_slides').select('*').eq('merchant_id', merchantId).order('created_at', { ascending: false }),
         ]);
 
-        if (mRes.error || !mRes.data) {
-          showToast('Merchant profile not found. Please complete setup.', 'amber');
-          return false;
-        }
-
         state.isCloudLive = true;
-        state.merchant = mRes.data;
-        if (!state.merchant.theme_id) {
-          state.merchant.theme_id = getBusinessConfig(state.merchant.category).defaultTheme;
-        }
-        applyTheme(state.merchant.theme_id);
+        state.ui.authError = null;
+        state.merchant = merchantRow;
         state.products = pRes.data || [];
         state.orders = oRes.data || [];
         state.coupons = cRes.data || [];
         state.offer_slides = sRes.data || [];
-        return true;
+
+        const activeTheme = getMerchantTheme(merchantRow.id, merchantRow.category);
+        state.ui.selectedTheme = activeTheme;
+        applyTheme(activeTheme);
+        return { ok: true };
       } catch (err) {
-        showToast('Network error loading Supabase data.', 'red');
-        return false;
+        const msg = (err && err.message) || 'Network error loading Supabase data.';
+        state.ui.authError = msg;
+        showToast(msg, 'red');
+        return { ok: false, error: msg };
       }
     }
 
     async function loadStorefrontBySlug(slug) {
       if (!sb) return false;
       try {
-        const { data: merchant, error } = await sb.from('merchants').select('*').eq('slug', slug).single();
+        const { data: merchant, error } = await sb.from('merchants').select('*').eq('slug', slug).maybeSingle();
         if (error || !merchant) return false;
         const [pRes, cRes, sRes] = await Promise.all([
           sb.from('products').select('*').eq('merchant_id', merchant.id).eq('in_stock', true).order('created_at', { ascending: false }),
@@ -585,10 +584,12 @@
         ]);
         state.isCloudLive = true;
         state.merchant = merchant;
-        applyTheme(merchant.theme_id || getBusinessConfig(merchant.category).defaultTheme);
         state.products = pRes.data || [];
         state.coupons = cRes.data || [];
         state.offer_slides = sRes.data || [];
+        const activeTheme = getMerchantTheme(merchant.id, merchant.category);
+        state.ui.selectedTheme = activeTheme;
+        applyTheme(activeTheme);
         return true;
       } catch (e) {
         return false;
@@ -597,13 +598,9 @@
 
     async function handleSupabaseLogin(e) {
       e.preventDefault();
-      state.ui.authAlert = null;
+      state.ui.authError = null;
       if (!sb) {
-        state.ui.authAlert = {
-          type: 'red',
-          title: 'Supabase SDK Unavailable',
-          message: 'Could not initialize Supabase client. Check your internet connection or test immediately in Local Demo Mode.',
-        };
+        state.ui.authError = 'Supabase SDK not loaded. Use Demo Mode.';
         renderApp();
         return;
       }
@@ -615,36 +612,21 @@
       try {
         const { data, error } = await sb.auth.signInWithPassword({ email, password });
         if (error) {
-          const msg = error.message || 'Login failed.';
-          if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
-            state.ui.authAlert = {
-              type: 'red',
-              title: 'Unable to Reach Supabase Server',
-              message: 'Network/CORS "Failed to fetch" error. Please check your internet connection, disable any ad-blocker/VPN blocking supabase.co, or use 1-Click Demo Mode below.',
-            };
-          } else if (msg.toLowerCase().includes('confirm')) {
-            state.ui.authAlert = {
-              type: 'amber',
-              title: 'Email Confirmation Pending',
-              message: "Please confirm your email OR disable 'Confirm Email' in Supabase Dashboard -> Authentication -> Providers -> Email for instant login.",
-            };
-          } else {
-            state.ui.authAlert = { type: 'red', title: 'Login Failed', message: msg };
-          }
+          state.ui.authError = error.message || 'Login failed.';
+          showToast(state.ui.authError, 'red');
           renderApp();
           return;
         }
-        const ok = await loadMerchantBundleFromSupabase(data.user.id);
-        if (ok) {
+        const res = await loadMerchantBundleFromSupabase(data.user.id, data.user.email || email);
+        if (res.ok) {
           showToast(`Welcome back, ${state.merchant.shop_name}!`, 'emerald');
           setMode('merchant');
+        } else {
+          renderApp();
         }
       } catch (err) {
-        state.ui.authAlert = {
-          type: 'red',
-          title: 'Connection / Fetch Error',
-          message: 'Unable to fetch from Supabase. Verify your internet connection, check if an ad-blocker or firewall is blocking xtuhotrytagateunvjcg.supabase.co, or try Local Demo Mode.',
-        };
+        state.ui.authError = (err && err.message) || 'Unable to fetch from Supabase. Check internet or use Demo Mode.';
+        showToast(state.ui.authError, 'red');
         renderApp();
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = 'Login to Dashboard'; }
@@ -653,54 +635,48 @@
 
     async function handleSupabaseSignup(e) {
       e.preventDefault();
-      state.ui.authAlert = null;
-      if (!sb) { showToast('Supabase SDK not loaded. Use Demo Mode.', 'amber'); return; }
+      state.ui.authError = null;
+      if (!sb) {
+        state.ui.authError = 'Supabase SDK not loaded. Use Demo Mode.';
+        renderApp();
+        return;
+      }
       const shop_name = document.getElementById('su-shop').value.trim();
       const owner_name = document.getElementById('su-owner').value.trim();
       const email = document.getElementById('su-email').value.trim();
       const password = document.getElementById('su-pass').value;
       const whatsapp_number = document.getElementById('su-wa').value.replace(/\D/g, '');
-      const city = document.getElementById('su-city').value.trim() || 'Ahmedabad';
+      const city = document.getElementById('su-city').value.trim() || 'India';
       const category = document.getElementById('su-cat').value;
-      const theme_id = state.ui.signupTheme || getBusinessConfig(category).defaultTheme;
+      const chosenTheme = state.ui.selectedTheme || getBusinessConfig(category).defaultTheme;
       const btn = document.getElementById('signup-btn');
       btn.disabled = true; btn.textContent = 'Creating shop...';
 
       try {
         const { data, error } = await sb.auth.signUp({ email, password });
         if (error) {
-          state.ui.authAlert = {
-            type: 'red',
-            title: 'Signup Error',
-            message: error.message.toLowerCase().includes('fetch')
-              ? 'Unable to fetch from Supabase. Check your internet/ad-blocker or use Demo Mode.'
-              : error.message,
-          };
+          state.ui.authError = error.message || 'Signup failed.';
+          showToast(state.ui.authError, 'red');
           renderApp();
           return;
         }
 
         const user = data.user;
-        const session = data.session;
-
-        // Graceful handling when Supabase Email Confirmation is ON (user exists, session is null)
-        if (!user || !session) {
-          applyTheme(theme_id);
-          state.ui.authAlert = {
-            type: 'amber',
-            title: 'Account Created — Email Verification Required',
-            message: "Account created! Please confirm your email OR disable 'Confirm Email' in Supabase Dashboard -> Authentication -> Providers -> Email for instant login.",
-          };
+        if (!user) {
+          state.ui.authError = 'Account created! Please confirm your email, then login.';
           state.ui.authTab = 'login';
           renderApp();
           return;
         }
 
+        saveMerchantTheme(user.id, chosenTheme);
+        applyTheme(chosenTheme);
+
         const baseSlug = shop_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'shop';
         const slug = `${baseSlug}-${Math.floor(100 + Math.random() * 899)}`;
-        const trialEnds = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
-        const coreMerchant = {
+        // Safe 7-column insert only (never fails on missing optional columns)
+        const newMerchant = {
           id: user.id,
           shop_name,
           slug,
@@ -708,43 +684,28 @@
           whatsapp_number: whatsapp_number.startsWith('91') ? whatsapp_number : `91${whatsapp_number}`,
           city,
           category,
-          upi_id: '',
-          logo_url: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=200&q=80',
-          is_open: true,
-          delivery_fee: 40,
-          free_delivery_above: 500,
-          plan_status: 'trial',
-          trial_ends_at: trialEnds,
         };
 
-        // Try saving with theme_id first; fallback gracefully if theme_id column doesn't exist yet
-        let insRes = await sb.from('merchants').insert({ ...coreMerchant, theme_id });
-        if (insRes.error && (insRes.error.message || '').toLowerCase().includes('theme_id')) {
-          insRes = await sb.from('merchants').insert(coreMerchant);
-        }
-
-        if (insRes.error) {
-          state.ui.authAlert = {
-            type: 'amber',
-            title: 'Account Created — Confirm Email to Continue',
-            message: "Account created! Please confirm your email OR disable 'Confirm Email' in Supabase Dashboard -> Authentication -> Providers -> Email for instant login.",
-          };
+        const { error: insErr } = await sb.from('merchants').insert(newMerchant);
+        if (insErr) {
+          state.ui.authError = insErr.message.includes('row-level security') || !data.session
+            ? 'Account created! Please verify your email (or disable Confirm Email in Supabase) and then login.'
+            : insErr.message;
           state.ui.authTab = 'login';
           renderApp();
           return;
         }
 
-        applyTheme(theme_id);
-        await loadMerchantBundleFromSupabase(user.id);
-        state.merchant.theme_id = theme_id;
-        showToast(`🎉 ${shop_name} is LIVE! 14-day Free Trial started.`, 'emerald');
-        setMode('merchant');
+        const res = await loadMerchantBundleFromSupabase(user.id, email);
+        if (res.ok) {
+          showToast(`🎉 ${shop_name} is LIVE! 14-day Free Trial started.`, 'emerald');
+          setMode('merchant');
+        } else {
+          renderApp();
+        }
       } catch (err) {
-        state.ui.authAlert = {
-          type: 'red',
-          title: 'Network / Fetch Error',
-          message: 'Unable to reach Supabase during signup. Check your internet connection or test immediately in Local Demo Mode.',
-        };
+        state.ui.authError = (err && err.message) || 'Unable to fetch from Supabase. Check internet or use Demo Mode.';
+        showToast(state.ui.authError, 'red');
         renderApp();
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = 'Start 14-Day Free Trial'; }
@@ -754,14 +715,16 @@
     function enterDemoMode() {
       const demo = loadLocalDemo();
       state.isCloudLive = false;
-      state.ui.authAlert = null;
+      state.ui.authError = null;
       state.merchant = demo.merchant;
-      applyTheme(state.merchant.theme_id || getBusinessConfig(state.merchant.category).defaultTheme);
       state.products = demo.products;
       state.orders = demo.orders;
       state.coupons = demo.coupons;
       state.offer_slides = demo.offer_slides;
       state.customerProfile = demo.customerProfile;
+      const th = getMerchantTheme(demo.merchant.id, demo.merchant.category);
+      state.ui.selectedTheme = th;
+      applyTheme(th);
       showToast('Demo Mode active (saved locally in browser).', 'amber');
       setMode('merchant');
     }
@@ -982,9 +945,9 @@
     function openProductModal(prodId = null) {
       const editing = prodId ? state.products.find((p) => p.id === prodId) : null;
       const biz = getBusinessConfig(state.merchant.category);
-      const catOptions = [...new Set([...biz.categories, 'Best Sellers', 'General'])];
+      const subCats = [...new Set([...biz.subCats, 'General'])];
       const variants = editing && Array.isArray(editing.variants) && editing.variants.length
-        ? editing.variants : [{ label: biz.isService ? 'Standard Visit' : 'Standard', price: editing ? editing.price : 499, mrp: editing ? editing.mrp : '' }];
+        ? editing.variants : [{ label: 'Standard', price: editing ? editing.price : 499, mrp: editing ? editing.mrp : '' }];
 
       const root = document.getElementById('modal-root');
       root.classList.remove('hidden');
@@ -1009,13 +972,13 @@
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">${biz.isService ? 'Service Name *' : 'Product Name *'}</label>
-                <input id="pm-name" type="text" required value="${editing ? escapeHTML(editing.name) : ''}" placeholder="${biz.isService ? 'e.g., Split AC Jet Service' : 'e.g., Castrol Engine Oil 1L'}" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold" />
+                <input id="pm-name" type="text" required value="${editing ? escapeHTML(editing.name) : ''}" placeholder="${biz.isService ? 'e.g., Split AC Deep Cleaning' : 'e.g., Brake Pad Set / Truffle Cake'}" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold" />
               </div>
-              <div class="grid ${biz.isFood ? 'grid-cols-2' : 'grid-cols-1'} gap-2">
+              <div class="grid grid-cols-2 gap-2">
                 <div>
                   <label class="block text-xs font-bold text-slate-700 mb-1">Category</label>
                   <select id="pm-cat" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white">
-                    ${catOptions.map((c) => `<option value="${escapeHTML(c)}" ${editing && editing.category === c ? 'selected' : ''}>${escapeHTML(c)}</option>`).join('')}
+                    ${subCats.map((c) => `<option value="${escapeHTML(c)}" ${editing && editing.category === c ? 'selected' : ''}>${escapeHTML(c)}</option>`).join('')}
                   </select>
                 </div>
                 ${biz.isFood ? `
@@ -1231,71 +1194,24 @@
     }
 
     // SETTINGS, COUPONS & OFFER SLIDES
-    function selectSignupCategory(cat) {
-      const biz = getBusinessConfig(cat);
-      state.ui.signupTheme = biz.defaultTheme;
-      applyTheme(biz.defaultTheme);
-      document.querySelectorAll('.su-swatch').forEach((el) => {
-        el.classList.toggle('ring-2', el.dataset.theme === biz.defaultTheme);
-        el.classList.toggle('ring-offset-2', el.dataset.theme === biz.defaultTheme);
-        el.classList.toggle('ring-slate-900', el.dataset.theme === biz.defaultTheme);
-      });
-    }
-
-    function selectSignupTheme(themeId) {
-      state.ui.signupTheme = themeId;
-      applyTheme(themeId);
-      document.querySelectorAll('.su-swatch').forEach((el) => {
-        el.classList.toggle('ring-2', el.dataset.theme === themeId);
-        el.classList.toggle('ring-offset-2', el.dataset.theme === themeId);
-        el.classList.toggle('ring-slate-900', el.dataset.theme === themeId);
-      });
-    }
-
-    async function selectMerchantTheme(themeId) {
-      state.merchant.theme_id = themeId;
-      applyTheme(themeId);
-      if (state.isCloudLive && sb) {
-        // Attempt saving theme_id gracefully; ignore if column doesn't exist in Supabase table
-        await sb.from('merchants').update({ theme_id: themeId }).eq('id', state.merchant.id);
-      } else {
-        saveLocalDemo();
-      }
-      showToast(`Theme applied: ${THEME_PALETTES[themeId].name}`, 'emerald');
-      renderApp();
-    }
-
-    function onSettingsCategoryChange(cat) {
-      const biz = getBusinessConfig(cat);
-      state.merchant.category = cat;
-      state.merchant.theme_id = biz.defaultTheme;
-      applyTheme(biz.defaultTheme);
-      showToast(`Switched to ${cat}`, 'navy');
-    }
-
     async function saveMerchantSettings(e) {
       e.preventDefault();
-      const category = document.getElementById('set-cat').value;
-      const coreUpdates = {
+      const updates = {
         shop_name: document.getElementById('set-name').value.trim(),
-        category,
         whatsapp_number: document.getElementById('set-wa').value.replace(/\D/g, ''),
         upi_id: document.getElementById('set-upi').value.trim(),
         city: document.getElementById('set-city').value.trim(),
+        category: document.getElementById('set-cat').value,
         delivery_fee: Number(document.getElementById('set-fee').value) || 0,
         free_delivery_above: Number(document.getElementById('set-free').value) || 0,
       };
-      const theme_id = state.merchant.theme_id || getBusinessConfig(category).defaultTheme;
-      applyTheme(theme_id);
-
       if (state.isCloudLive && sb) {
-        let res = await sb.from('merchants').update({ ...coreUpdates, theme_id }).eq('id', state.merchant.id);
-        if (res.error && (res.error.message || '').toLowerCase().includes('theme_id')) {
-          res = await sb.from('merchants').update(coreUpdates).eq('id', state.merchant.id);
-        }
-        if (res.error) { showToast(res.error.message, 'red'); return; }
+        const { error } = await sb.from('merchants').update(updates).eq('id', state.merchant.id);
+        if (error) { showToast(error.message, 'red'); return; }
       }
-      state.merchant = { ...state.merchant, ...coreUpdates, theme_id };
+      state.merchant = { ...state.merchant, ...updates };
+      saveMerchantTheme(state.merchant.id, state.ui.selectedTheme);
+      applyTheme(state.ui.selectedTheme);
       saveLocalDemo();
       showToast('Shop settings & theme saved!', 'emerald');
       renderApp();
@@ -1777,27 +1693,25 @@
      */
     function renderAuthScreen() {
       const tab = state.ui.authTab;
-      const alertBox = state.ui.authAlert;
-      const bizNames = Object.keys(BUSINESS_TYPES);
+      const err = state.ui.authError;
       return `
-        <div class="min-h-screen bg-brand-primary flex flex-col justify-between p-5 transition-colors">
-          <div class="pt-4 text-center space-y-1.5">
-            <div class="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 mx-auto flex items-center justify-center text-brand-accent font-extrabold text-lg">OL</div>
+        <div class="min-h-screen bg-theme-primary flex flex-col justify-between p-5 transition-colors">
+          <div class="pt-5 text-center space-y-2">
+            <div class="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 mx-auto flex items-center justify-center text-amber-400 font-extrabold text-lg">OL</div>
             <h1 class="text-2xl font-extrabold text-white tracking-tight">OrderLink</h1>
             <p class="text-xs text-slate-300">Single-Link Online Catalog &amp; WhatsApp Orders</p>
           </div>
 
-          <div class="bg-white rounded-3xl p-5 shadow-2xl space-y-3.5 my-4">
+          <div class="bg-white rounded-3xl p-5 shadow-2xl space-y-4">
             <div class="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
-              <button onclick="state.ui.authTab='login'; state.ui.authAlert=null; renderApp();" class="py-2 rounded-lg ${tab === 'login' ? 'bg-brand-primary text-white' : 'text-slate-600'}">Merchant Login</button>
-              <button onclick="state.ui.authTab='signup'; state.ui.authAlert=null; renderApp();" class="py-2 rounded-lg ${tab === 'signup' ? 'bg-brand-primary text-white' : 'text-slate-600'}">Create New Shop</button>
+              <button onclick="state.ui.authTab='login'; state.ui.authError=null; renderApp();" class="py-2 rounded-lg ${tab === 'login' ? 'bg-theme-primary text-white' : 'text-slate-600'}">Merchant Login</button>
+              <button onclick="state.ui.authTab='signup'; state.ui.authError=null; renderApp();" class="py-2 rounded-lg ${tab === 'signup' ? 'bg-theme-primary text-white' : 'text-slate-600'}">Create New Shop</button>
             </div>
 
-            ${alertBox ? `
-              <div class="p-3 rounded-2xl border text-xs space-y-2 ${alertBox.type === 'amber' ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-rose-50 border-rose-200 text-rose-900'}">
-                <p class="font-extrabold">${alertBox.type === 'amber' ? '⚠️' : '❌'} ${escapeHTML(alertBox.title)}</p>
-                <p class="leading-relaxed text-[11px]">${escapeHTML(alertBox.message)}</p>
-                <button type="button" onclick="enterDemoMode()" class="w-full py-2 bg-brand-primary text-white font-bold text-[11px] rounded-xl">⚡ Test Immediately in Local Demo Mode</button>
+            ${err ? `
+              <div class="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs space-y-2">
+                <p class="font-extrabold">❌ ${escapeHTML(err)}</p>
+                <button type="button" onclick="enterDemoMode()" class="w-full py-2 bg-[#0F172A] text-white font-bold text-[11px] rounded-xl">⚡ Test Immediately in Local Demo Mode</button>
               </div>
             ` : ''}
 
@@ -1805,7 +1719,7 @@
               <form onsubmit="handleSupabaseLogin(event)" class="space-y-3">
                 <input id="login-email" type="email" required placeholder="Merchant Email" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm" />
                 <input id="login-pass" type="password" required placeholder="Password" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm" />
-                <button id="login-btn" type="submit" class="w-full py-3 bg-brand-primary text-white font-bold text-sm rounded-2xl">Login to Dashboard</button>
+                <button id="login-btn" type="submit" class="w-full py-3 bg-theme-primary hover:opacity-95 text-white font-bold text-sm rounded-2xl">Login to Dashboard</button>
               </form>
             ` : `
               <form onsubmit="handleSupabaseSignup(event)" class="space-y-2.5">
@@ -1817,27 +1731,21 @@
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                   <input id="su-city" type="text" required placeholder="City (e.g., Ahmedabad)" class="px-3 py-2 rounded-xl border border-slate-200 text-xs" />
-                  <select id="su-cat" onchange="selectSignupCategory(this.value)" class="px-2 py-2 rounded-xl border border-slate-200 text-xs bg-white font-semibold">
-                    ${bizNames.map((b) => `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('')}
+                  <select id="su-cat" onchange="const th=getBusinessConfig(this.value).defaultTheme; state.ui.selectedTheme=th; applyTheme(th); renderApp();" class="px-2 py-2 rounded-xl border border-slate-200 text-xs bg-white">
+                    ${BUSINESS_CATEGORIES.map((b) => `<option value="${escapeHTML(b.name)}">${escapeHTML(b.name)}</option>`).join('')}
                   </select>
                 </div>
-
-                <!-- Theme Color Swatches -->
-                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1.5">
-                  <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Brand Theme Color</span>
-                  <div class="flex items-center justify-between gap-1.5">
-                    ${Object.values(THEME_PALETTES).map((p) => `
-                      <button type="button" data-theme="${p.id}" onclick="selectSignupTheme('${p.id}')" title="${p.name}"
-                        class="su-swatch w-8 h-8 rounded-full flex items-center justify-center transition ${state.ui.signupTheme === p.id ? 'ring-2 ring-offset-2 ring-slate-900' : ''}"
-                        style="background: linear-gradient(135deg, ${p.primary} 55%, ${p.accent} 45%);">
-                      </button>
+                <div class="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                  <span class="text-[11px] font-bold text-slate-600">Brand Theme</span>
+                  <div class="flex gap-1.5">
+                    ${Object.entries(THEME_PALETTES).map(([k, v]) => `
+                      <button type="button" title="${v.label}" onclick="state.ui.selectedTheme='${k}'; applyTheme('${k}'); renderApp();" class="w-5 h-5 rounded-full border-2 ${state.ui.selectedTheme === k ? 'border-slate-900 scale-110' : 'border-white'}" style="background:${v.swatch}"></button>
                     `).join('')}
                   </div>
                 </div>
-
                 <input id="su-email" type="email" required placeholder="Email Address *" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs" />
                 <input id="su-pass" type="password" required minlength="6" placeholder="Create Password (min 6 chars) *" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs" />
-                <button id="signup-btn" type="submit" class="w-full py-3 bg-brand-primary text-white font-bold text-sm rounded-2xl">Start 14-Day Free Trial</button>
+                <button id="signup-btn" type="submit" class="w-full py-3 bg-theme-primary text-white font-bold text-sm rounded-2xl">Start 14-Day Free Trial</button>
               </form>
             `}
 
@@ -1847,7 +1755,7 @@
             </div>
           </div>
 
-          <p class="text-center text-[11px] text-slate-300">Powered by Supabase • Mobile-First PWA</p>
+          <p class="text-center text-[11px] text-slate-400">Powered by Supabase • Mobile-First PWA</p>
         </div>
       `;
     }
@@ -2019,22 +1927,16 @@
         content = `
           <main class="p-4 space-y-4 pb-28">
             <form onsubmit="saveMerchantSettings(event)" class="bg-white rounded-2xl p-4 border border-slate-100 space-y-2.5">
-              <h3 class="text-sm font-extrabold">Shop, Business Type &amp; Theme</h3>
-              <input id="set-name" type="text" required value="${escapeHTML(m.shop_name)}" placeholder="Shop Name" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold" />
-              <div>
-                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Business Category</label>
-                <select id="set-cat" onchange="onSettingsCategoryChange(this.value)" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white font-semibold">
-                  ${Object.keys(BUSINESS_TYPES).map((b) => `<option value="${escapeHTML(b)}" ${m.category === b ? 'selected' : ''}>${escapeHTML(b)}</option>`).join('')}
-                </select>
-              </div>
-              <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1.5">
-                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Live Brand Theme</span>
-                <div class="flex items-center justify-between gap-1.5">
-                  ${Object.values(THEME_PALETTES).map((p) => `
-                    <button type="button" onclick="selectMerchantTheme('${p.id}')" title="${p.name}"
-                      class="w-8 h-8 rounded-full transition ${getActiveThemeId() === p.id ? 'ring-2 ring-offset-2 ring-slate-900 scale-105' : 'opacity-80 hover:opacity-100'}"
-                      style="background: linear-gradient(135deg, ${p.primary} 55%, ${p.accent} 45%);">
-                    </button>
+              <h3 class="text-sm font-extrabold">Shop, Category &amp; Theme Settings</h3>
+              <input id="set-name" type="text" required value="${escapeHTML(m.shop_name)}" placeholder="Shop Name" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs" />
+              <select id="set-cat" onchange="const th=getBusinessConfig(this.value).defaultTheme; state.ui.selectedTheme=th; applyTheme(th);" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white font-semibold">
+                ${BUSINESS_CATEGORIES.map((b) => `<option value="${escapeHTML(b.name)}" ${m.category === b.name ? 'selected' : ''}>${escapeHTML(b.name)}</option>`).join('')}
+              </select>
+              <div class="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                <span class="text-[11px] font-bold text-slate-600">Theme Color</span>
+                <div class="flex gap-1.5">
+                  ${Object.entries(THEME_PALETTES).map(([k, v]) => `
+                    <button type="button" title="${v.label}" onclick="state.ui.selectedTheme='${k}'; applyTheme('${k}'); saveMerchantTheme('${m.id}','${k}'); renderApp();" class="w-5 h-5 rounded-full border-2 ${state.ui.selectedTheme === k ? 'border-slate-900 scale-110' : 'border-white'}" style="background:${v.swatch}"></button>
                   `).join('')}
                 </div>
               </div>
@@ -2047,7 +1949,7 @@
                 <input id="set-fee" type="number" value="${m.delivery_fee || 0}" placeholder="Fee ₹" class="px-2.5 py-2 rounded-xl border border-slate-200 text-xs" />
                 <input id="set-free" type="number" value="${m.free_delivery_above || 500}" placeholder="Free > ₹" class="px-2.5 py-2 rounded-xl border border-slate-200 text-xs" />
               </div>
-              <button type="submit" class="w-full py-2.5 bg-brand-primary text-white font-bold text-xs rounded-xl">Save Settings</button>
+              <button type="submit" class="w-full py-2.5 bg-theme-primary text-white font-bold text-xs rounded-xl">Save Settings</button>
             </form>
 
             <!-- Coupons -->
@@ -2181,21 +2083,21 @@
     function renderCustomerStorefront() {
       const m = state.merchant;
       const biz = getBusinessConfig(m.category);
+      const ctaOrderLabel = biz.isService ? 'Book on WhatsApp' : t('orderOnWa');
+      const addBtnLabel = biz.isService ? '+ Book' : '+ Add';
       const isLocked = !m.is_open || m.plan_status === 'expired' || m.plan_status === 'paused';
-      const productCats = state.products.filter((p) => p.in_stock).map((p) => p.category || 'General');
-      const cats = ['All', ...new Set([...productCats, ...biz.categories])];
+      const cats = ['All', ...new Set(state.products.filter((p) => p.in_stock).map((p) => p.category || 'General'))];
       const products = state.products.filter((p) => p.in_stock && (state.ui.storeCategory === 'All' || p.category === state.ui.storeCategory));
       const slides = state.offer_slides.filter((s) => s.is_active);
       const cart = getCartSummary();
       const rem = Math.max(0, cart.threshold - cart.subtotal);
       const pct = Math.min(100, Math.round((cart.subtotal / (cart.threshold || 1)) * 100));
-      const waCtaLabel = biz.isService ? 'Book on WhatsApp' : t('orderOnWa');
 
       return `
         <div class="min-h-screen bg-[#F8FAFC] ${cart.count > 0 ? 'pb-36' : 'pb-12'}">
-          <div class="bg-brand-primary text-white px-4 py-2 flex items-center justify-between text-[11px]">
+          <div class="bg-theme-primary text-white px-4 py-2 flex items-center justify-between text-[11px]">
             <span class="font-semibold text-white/80">🛍️ ${escapeHTML(m.category || 'Storefront')} • ${state.isCloudLive ? 'Live' : 'Demo'}</span>
-            <button onclick="setMode('merchant')" class="text-brand-accent font-bold">&larr; Dashboard</button>
+            <button onclick="setMode('merchant')" class="text-amber-400 font-bold">&larr; Dashboard</button>
           </div>
 
           ${isLocked ? `<div class="bg-rose-600 text-white px-4 py-2.5 text-center text-xs font-bold">⛔ ${t('storePaused')}</div>` : ''}
@@ -2245,7 +2147,7 @@
 
           <!-- Category Tabs -->
           <nav class="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar sticky top-0 bg-[#F8FAFC]/95 z-20">
-            ${cats.map((c) => `<button onclick="state.ui.storeCategory='${escapeHTML(c)}'; renderApp();" class="px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 ${state.ui.storeCategory === c ? 'bg-brand-primary text-white' : 'bg-white border border-slate-200 text-slate-700'}">${escapeHTML(c)}</button>`).join('')}
+            ${cats.map((c) => `<button onclick="state.ui.storeCategory='${escapeHTML(c)}'; renderApp();" class="px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 ${state.ui.storeCategory === c ? 'bg-theme-primary text-white' : 'bg-white border border-slate-200 text-slate-700'}">${escapeHTML(c)}</button>`).join('')}
           </nav>
 
           <!-- Products -->
@@ -2265,14 +2167,13 @@
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1.5">
                       ${biz.isFood && p.dietary === 'veg' ? '<span class="w-3 h-3 border border-emerald-600 p-0.5 inline-flex items-center justify-center rounded-[2px]"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span></span>' : ''}
-                      ${biz.isFood && p.dietary === 'egg' ? '<span class="w-3 h-3 border border-amber-600 p-0.5 inline-flex items-center justify-center rounded-[2px]"><span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span></span>' : ''}
                       ${p.is_bestseller ? '<span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">★ Best Seller</span>' : ''}
                     </div>
                     <h3 class="font-bold text-sm truncate mt-0.5">${escapeHTML(p.name)}</h3>
                     <p class="text-[11px] text-slate-500 line-clamp-1">${escapeHTML(p.description)}</p>
                     ${vars.length > 1 ? `
                       <div class="flex flex-wrap gap-1 mt-1.5">
-                        ${vars.map((vr, idx) => `<button onclick="state.selectedVariants['${p.id}']=${idx}; renderApp();" class="px-2 py-0.5 rounded-lg text-[10px] font-bold border ${idx === vIdx ? 'bg-brand-primary text-white border-brand-primary' : 'bg-slate-50 text-slate-600 border-slate-200'}">${escapeHTML(vr.label)}</button>`).join('')}
+                        ${vars.map((vr, idx) => `<button onclick="state.selectedVariants['${p.id}']=${idx}; renderApp();" class="px-2 py-0.5 rounded-lg text-[10px] font-bold border ${idx === vIdx ? 'bg-theme-primary text-white border-theme-primary' : 'bg-slate-50 text-slate-600 border-slate-200'}">${escapeHTML(vr.label)}</button>`).join('')}
                       </div>
                     ` : ''}
                     <div class="flex items-center justify-between mt-2">
@@ -2281,14 +2182,14 @@
                         ${v.mrp ? `<span class="text-xs text-slate-400 line-through">${formatINR(v.mrp)}</span>` : ''}
                       </div>
                       ${qty > 0
-                        ? `<div class="flex items-center bg-brand-primary text-white rounded-xl px-2 py-1 gap-2.5 text-xs font-bold"><button onclick="updateCartQty('${p.id}', ${vIdx}, -1)" class="px-1">−</button><span>${qty}</span><button onclick="updateCartQty('${p.id}', ${vIdx}, 1)" class="px-1">+</button></div>`
-                        : `<button ${isLocked ? 'disabled' : ''} onclick="updateCartQty('${p.id}', ${vIdx}, 1)" class="px-3.5 py-1.5 ${isLocked ? 'bg-slate-100 text-slate-400' : 'bg-brand-soft text-brand-primary'} rounded-xl text-xs font-bold">${biz.isService ? '+ Book' : '+ Add'}</button>`
+                        ? `<div class="flex items-center bg-theme-primary text-white rounded-xl px-2 py-1 gap-2.5 text-xs font-bold"><button onclick="updateCartQty('${p.id}', ${vIdx}, -1)" class="px-1">−</button><span>${qty}</span><button onclick="updateCartQty('${p.id}', ${vIdx}, 1)" class="px-1">+</button></div>`
+                        : `<button ${isLocked ? 'disabled' : ''} onclick="updateCartQty('${p.id}', ${vIdx}, 1)" class="px-3.5 py-1.5 ${isLocked ? 'bg-slate-100 text-slate-400' : 'bg-theme-soft text-theme-primary'} rounded-xl text-xs font-bold">${addBtnLabel}</button>`
                       }
                     </div>
                   </div>
                 </div>
               `;
-            }).join('') || `<p class="text-center py-10 text-xs text-slate-400">No items available in this category yet.</p>`}
+            }).join('') || `<p class="text-center py-10 text-xs text-slate-400">No items available right now.</p>`}
           </main>
 
           <!-- Powered by OrderLink Footer (hidden when plan_status === 'active') -->
@@ -2310,7 +2211,7 @@
               </div>
               <div class="p-3.5 flex items-center justify-between">
                 <div><p class="text-[11px] text-slate-500 font-semibold">${cart.count} ${t('itemsSelected')}</p><p class="text-lg font-extrabold leading-tight">${formatINR(cart.total)}</p></div>
-                <button onclick="openCheckoutModal()" class="px-5 py-3 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm rounded-2xl shadow-md">${waCtaLabel}</button>
+                <button onclick="openCheckoutModal()" class="px-5 py-3 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm rounded-2xl shadow-md">${ctaOrderLabel}</button>
               </div>
             </div>
           ` : ''}
@@ -2388,8 +2289,8 @@
         try {
           const { data } = await sb.auth.getSession();
           if (data && data.session && data.session.user) {
-            const ok = await loadMerchantBundleFromSupabase(data.session.user.id);
-            if (ok) {
+            const res = await loadMerchantBundleFromSupabase(data.session.user.id, data.session.user.email || '');
+            if (res.ok) {
               state.ui.mode = 'merchant';
               renderApp();
               return;
